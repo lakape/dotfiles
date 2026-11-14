@@ -1,10 +1,6 @@
-# Modular & 100% Reproducible NixOS Flake
+# Universal & 100% Reproducible NixOS Flake (for ANY PC)
 
-Dieses Repository enthält die vollständige, reproduzierbare Konfiguration für:
-- **Workstation** (`#workstation` / `#nixos`): Hauptrechner mit Intel i9 & NVIDIA RTX 4060 Mobile (PRIME Offload)
-- **Secondary PC** (`#secondary`): Schwächerer Zweitrechner mit nativer Intel/AMD Open-Source Grafik (Mesa KMS)
-- **NextKDE (KOS)**: Declarativer Desktop Shell auf Basis von Plasma 6 und Quickshell
-- **Home-Manager**: Automatische Konfiguration von Tastaturkürzeln, Desktop-Tokens und Shell-Profilen
+Dieses Repository enthält deine vollständige, zu **100 % reproduzierbare NixOS & NextKDE (KOS)** Desktop-Konfiguration. Sie ist so aufgebaut, dass sie **auf jedem beliebigen Computer** (virtuelle Maschine, Laptop, schwacher PC, Desktop mit Intel/AMD oder High-End Workstation mit NVIDIA) identisch installiert werden kann.
 
 ---
 
@@ -12,71 +8,62 @@ Dieses Repository enthält die vollständige, reproduzierbare Konfiguration für
 
 ```
 ~/dotfiles/
-├── flake.nix                          # Haupteinstiegspunkt für alle Hosts & Inputs
+├── flake.nix                          # Haupteinstiegspunkt (Profile: default/nixos & workstation)
+├── hardware-configuration.nix         # Hardware-Scan der Zielmaschine (Platten, CPU, Boot)
 ├── modules/
-│   ├── common.nix                     # Geteiltes Basissystem (KDE, Audio, KOS, Tools, Chromium)
-│   └── home.nix                       # Home-Manager Benutzerprofil (Shortcuts, KOS-Tokens, Aliase)
-├── hosts/
-│   ├── workstation/                   # Hardware & GPU-Konfiguration des Hauptrechners
-│   │   ├── default.nix
-│   │   └── hardware-configuration.nix
-│   └── secondary/                     # Hardware-Profil für den leistungsschwächeren PC
-│       ├── default.nix
-│       └── hardware-configuration.nix
+│   ├── common.nix                     # Universelles Basissystem (KDE Plasma 6, KOS, Tools, PipeWire)
+│   ├── home.nix                       # Home-Manager (KOS-Tokens, Tastaturkürzel, Shell-Aliase)
+│   └── nvidia.nix                     # Optionales Profil für Rechner mit dedizierter NVIDIA-GPU
 ├── dotfiles/
-│   ├── kde/                           # KWin & KDE Desktop-Vorlagen (kwinrc, shortcuts)
-│   └── kos/                           # KOS Window & App-Regeln
+│   ├── kde/                           # kwinrc, kglobalshortcutsrc, kdeglobals
+│   └── kos/                           # window-appearance.json, window-buttons.json etc.
 ├── fonts/                             # Apple SF-Pro Schriftarten
-├── scripts/
-│   ├── sync-desktop-to-repo.sh        # Holt aktuelle GUI-Änderungen ins Git-Repo
-│   └── apply-desktop-from-repo.sh     # Wendet Einstellungen aus dem Repo auf ~/.config an
-└── nextkde/                           # KOS Desktop Shell Source & Nix-Module
+└── scripts/
+    ├── sync-desktop-to-repo.sh        # Holt aktuelle GUI-Änderungen ins Git-Repo
+    └── apply-desktop-from-repo.sh     # Wendet Repo-Einstellungen auf ~/.config an
 ```
 
 ---
 
-## 🚀 Schnellanleitung: Diesen Rechner aktualisieren
+## 💻 Installation auf EINEM BELIEBIGEN PC (oder VM)
 
+Egal ob auf einem neuen Laptop, einem schwächeren PC oder in einer Test-VM:
+
+### 1. NixOS Live-Medium booten und Partitionen mounten
 ```bash
-# Auf diesem Rechner das System anwenden:
-sudo nixos-rebuild switch --flake ~/dotfiles#workstation
-
-# Oder über den eingerichteten Alias:
-rebuild-workstation
+# Beispiel GPT (EFI 512M nach /mnt/boot, Root-Partition nach /mnt)
+mount /dev/disk/by-label/nixos /mnt
+mkdir -p /mnt/boot
+mount /dev/disk/by-label/boot /mnt/boot
 ```
 
----
-
-## 💻 Installation auf dem schwächeren Zweit-PC
-
-Auf dem neuen / schwächeren Computer lässt sich das System in 4 einfachen Schritten komplett identisch aufsetzen:
-
-### 1. Minimales NixOS-Live-Medium booten und Platten partitionieren
-Formatieren (z. B. ext4 oder btrfs) und mounten nach `/mnt` sowie EFI nach `/mnt/boot`.
-
-### 2. Hardware-Konfiguration generieren
+### 2. Hardware des PCs automatisch scannen
 ```bash
 nixos-generate-config --root /mnt
 ```
 
-### 3. Repository klonen und Hardware-Scan einfügen
+### 3. Repository klonen & Hardware-Scan übernehmen
 ```bash
-git clone <DEIN_REPO_URL> /mnt/etc/dotfiles
-cp /mnt/etc/nixos/hardware-configuration.nix /mnt/etc/dotfiles/hosts/secondary/hardware-configuration.nix
+git clone https://github.com/lakape/dotfiles.git /mnt/etc/dotfiles
+cp /mnt/etc/nixos/hardware-configuration.nix /mnt/etc/dotfiles/
 ```
 
 ### 4. Installation starten
 ```bash
-nixos-install --flake /mnt/etc/dotfiles#secondary
+# Auf jedem normalen Rechner (Intel / AMD / VM):
+nixos-install --flake /mnt/etc/dotfiles
+
+# Auf Rechnern mit dedizierter NVIDIA-GPU:
+nixos-install --flake /mnt/etc/dotfiles#workstation
 ```
 
-Nach dem ersten Neustart bootet der schwächere Computer direkt in denselben KOS-Desktop mit denselben Tastaturkürzeln, App-Tokens und Tools!
+Nach einem `reboot` startet der Rechner direkt mit deinem exakt identischen KOS-Desktop, denselben Tastaturkürzeln, Farben, Schriftarten und Programmen!
 
 ---
 
-## 🔄 Desktop-Einstellungen anpassen und synchronisieren
+## 🔄 Änderungen anpassen & synchronisieren
 
 Wenn du Shortcuts oder KOS-Einstellungen im GUI änderst:
 1. `./scripts/sync-desktop-to-repo.sh` ausführen
-2. `git commit -am "Update desktop shortcuts"`
-3. Auf dem zweiten Rechner `git pull && rebuild-secondary`
+2. `git commit -am "Update desktop shortcuts" && git push`
+3. Auf jedem anderen Rechner einfach `git pull && rebuild` ausführen.

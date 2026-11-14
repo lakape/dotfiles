@@ -1,5 +1,5 @@
 {
-  description = "Modular NixOS configuration for Workstation & Secondary PC with NextKDE (KOS)";
+  description = "Universal 100% Reproducible NixOS & KOS Configuration for ANY Computer";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -16,50 +16,43 @@
   outputs = { self, nixpkgs, home-manager, nextkde, ... }@inputs:
     let
       system = "x86_64-linux";
+
+      # Universal modules for ANY computer (VMs, Intel, AMD, Laptops, Desktops)
+      universalModules = [
+        ./hardware-configuration.nix
+        ./modules/common.nix
+        nextkde.nixosModules.kos
+        home-manager.nixosModules.home-manager
+        {
+          services.kos.enable = true;
+          services.kos.weather.enable = false;
+
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.users.bigl = import ./modules/home.nix;
+        }
+      ];
     in {
       nixosConfigurations = {
-        # Workstation host (Intel i9 + NVIDIA RTX 4060 Mobile PRIME)
+        # 1. Universal Default Configuration (Works on ANY computer, VM, Intel, AMD)
+        "nixos" = nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = { inherit inputs; };
+          modules = universalModules;
+        };
+
+        "default" = self.nixosConfigurations.nixos;
+
+        # 2. Configuration for PCs with dedicated NVIDIA GPU (PRIME Offload)
         "workstation" = nixpkgs.lib.nixosSystem {
           inherit system;
           specialArgs = { inherit inputs; };
-          modules = [
-            ./modules/common.nix
-            ./hosts/workstation/default.nix
-            nextkde.nixosModules.kos
-            home-manager.nixosModules.home-manager
-            {
-              services.kos.enable = true;
-              services.kos.weather.enable = false;
-
-              home-manager.useGlobalPkgs = true;
-              home-manager.useUserPackages = true;
-              home-manager.users.bigl = import ./modules/home.nix;
-            }
+          modules = universalModules ++ [
+            ./modules/nvidia.nix
           ];
         };
 
-        # Default alias for seamless backward compatibility
-        "nixos" = self.nixosConfigurations.workstation;
-
-        # Weaker secondary PC (Open-Source Mesa KMS, optimized resource footprint)
-        "secondary" = nixpkgs.lib.nixosSystem {
-          inherit system;
-          specialArgs = { inherit inputs; };
-          modules = [
-            ./modules/common.nix
-            ./hosts/secondary/default.nix
-            nextkde.nixosModules.kos
-            home-manager.nixosModules.home-manager
-            {
-              services.kos.enable = true;
-              services.kos.weather.enable = false;
-
-              home-manager.useGlobalPkgs = true;
-              home-manager.useUserPackages = true;
-              home-manager.users.bigl = import ./modules/home.nix;
-            }
-          ];
-        };
+        "nvidia" = self.nixosConfigurations.workstation;
       };
     };
 }

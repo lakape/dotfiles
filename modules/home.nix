@@ -12,9 +12,8 @@
   programs.bash = {
     enable = true;
     shellAliases = {
-      rebuild = "sudo nixos-rebuild switch --flake ~/dotfiles#nixos";
+      rebuild = "sudo nixos-rebuild switch --flake ~/dotfiles";
       rebuild-workstation = "sudo nixos-rebuild switch --flake ~/dotfiles#workstation";
-      rebuild-secondary = "sudo nixos-rebuild switch --flake ~/dotfiles#secondary";
       update-flake = "cd ~/dotfiles && nix flake update";
     };
   };

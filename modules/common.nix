@@ -7,7 +7,20 @@
   boot.loader.efi.canTouchEfiVariables = true;
 
   # Networking
+  networking.hostName = lib.mkDefault "nixos";
   networking.networkmanager.enable = true;
+
+  # Latest Linux kernel
+  boot.kernelPackages = pkgs.linuxPackages_latest;
+
+  # Universal Graphics & Hardware Acceleration (Mesa KMS works on Intel, AMD, VirtIO, QEMU, etc.)
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
+    extraPackages = with pkgs; [
+      intel-media-driver
+    ];
+  };
 
   # Time & Locales
   time.timeZone = "Europe/Vienna";
