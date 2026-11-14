@@ -1,0 +1,11 @@
+{
+    "apps": {
+        "antigravity": { "showButtons": false },
+        "Antigravity": { "showButtons": false }
+    },
+    "rules": [
+        { "match": { "class": "antigravity" }, "showButtons": false },
+        { "match": { "class": "Antigravity" }, "showButtons": false },
+        { "match": { "titleRegex": ".*Antigravity.*" }, "showButtons": false }
+    ]
+}

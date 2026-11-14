@@ -1,0 +1,300 @@
+import QtQuick
+import Quickshell
+import Quickshell.Wayland
+import qs.desktop.modules.common
+import qs.desktop.modules.dock
+import "../../../Kos/Ui"
+
+// Reusable important-interaction surface. One layer-shell surface carries both
+// the backdrop underlay and the card. KWin only samples the surfaces *below* a
+// blur, so a second surface would have supplied a sampling field rather than a
+// visual layer -- and both consumers of this panel already carry their
+// readability contract on the card's own fixed scrim. Staying in-surface also
+// keeps one full-screen surface, and its damage, out of every open/close
+// animation.
+Scope {
+    id: root
+
+    default property alias content: cardHost.data
+    readonly property alias glass: cardPanel
+    property real contentPadding: 20
+    property var targetScreen: ScreenLifecycle.activeScreen
+    property bool modal: false
+    // "none" | "dim" | "dimBlur". The underlay shares this panel's single
+    // surface, so the card's own blur cannot sample it -- KWin only samples the
+    // surfaces below a blur. "dimBlur" therefore widens this surface's blur
+    // region to the whole screen instead of stacking a dimmed field under the
+    // glass, and it cannot be combined with a per-card blur region.
+    property string backdropMode: "none"
+    readonly property bool backdropVisible: root.modal
+        && root.backdropMode !== "none"
+    readonly property bool backdropBlurActive: root.backdropVisible
+        && root.backdropMode === "dimBlur"
+    property real backdropOpacity: -1
+    // A wash exists to push the desktop back, so it is dark in both appearances
+    // rather than polarized against the final glass tone.
+    property color backdropTint: "black"
+    // An explicit backdropOpacity wins; otherwise the wash is lighter where the
+    // screen it covers is already dark.
+    readonly property real backdropEffectiveOpacity: root.backdropOpacity >= 0
+        ? Math.min(1, root.backdropOpacity)
+        : (AppearanceTokens.resolvedAppearanceIsDark ? 0.38 : 0.48)
+    property bool dismissOnBackdrop: true
+    // Important dialogs are a fixed-content, fixed-size family, so their corner
+    // is a literal rather than a shape token: it holds still if the token scale
+    // moves, and it is deliberately rounder than shape.extraLarge (26/30).
+    property real radius: 24
+    property real cornerExponent: 2.35
+    // Outer shadow. It is cast entirely outside the card's outline (see
+    // KosCardShadow): a translucent card cannot carry a shadow underneath
+    // itself, because the glass would show that darkening through the material.
+    property bool shadowEnabled: true
+    property real shadowOffsetX: 0
+    property real shadowOffsetY: 12
+    property real shadowSoftness: 24
+    property color shadowColor: Qt.rgba(0, 0, 0, 0.35)
+    // 0 = real shadow. 1/2/3 paint the diagnostics described in KosCardShadow --
+    // a probe is the only way to tell a clipped surface apart from a
+    // mis-shaped or mis-wired one without guessing.
+    property real shadowDebugMode: 0
+    property int materialDepth: 0
+    property string material: "regular"
+    // "auto" follows appearance; important destructive prompts may request a
+    // stable light or dark material independent of the desktop theme.
+    property string materialTone: "auto" // "auto" | "light" | "dark"
+    // Shared important-dialog material: neutral graphite in dark appearance,
+    // warm pearl in light appearance. Individual dialogs may still override.
+    property string fixedScrimTone: "graphite"
+    // One value for both appearances. Not fully opaque: the glass underneath is
+    // part of the material, so the desktop reads through as a hint.
+    property real fixedScrimOpacity: 0.38
+    property string scrimLevel: "strong"
+    property bool scrimFixed: false
+    // The blur strength this panel asks the compositor for, published per shape
+    // through protocol v4 set_blur instead of following the global kwinrc
+    // BlurStrength -- a dialog wants less blur than the desktop surfaces do.
+    property bool blurOverrideEnabled: false
+    property real blurStrength: AppearanceConfigService.effectiveDockBlur
+    property bool maskContent: false
+    readonly property bool finalGlassIsDark: materialTone === "light" ? false : true
+    property color baseColor: AppearanceTokens.surface.pick(AppearanceTokens.colors.surfaceContainer,
+        (finalGlassIsDark ? ThemeService.barGlassBg : Qt.rgba(0.95, 0.95, 0.97, 0.35)))
+    property real surfaceOpacity: AppearanceTokens.surface.pick(AppearanceTokens.glass.materialOpacity, 1.0)
+    property color ambientPrimary: WallpaperColorSource.primary
+    property color ambientSecondary: WallpaperColorSource.secondary
+    property real ambientStrength: 0.0
+    // Content follows the requested final glass tone, not the generic glass
+    // surface's legacy "always white" foreground policy.
+    readonly property color contentForegroundColor: finalGlassIsDark
+        ? Qt.rgba(1, 1, 1, 0.96) : Qt.rgba(0.075, 0.07, 0.09, 0.96)
+    readonly property color contentSecondaryColor: finalGlassIsDark
+        ? Qt.rgba(1, 1, 1, 0.72) : Qt.rgba(0.075, 0.07, 0.09, 0.70)
+    readonly property color contentTertiaryColor: finalGlassIsDark
+        ? Qt.rgba(1, 1, 1, 0.54) : Qt.rgba(0.075, 0.07, 0.09, 0.52)
+    readonly property color contentControlFill: finalGlassIsDark
+        ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(0, 0, 0, 0.075)
+    readonly property color contentControlBorder: finalGlassIsDark
+        ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(0, 0, 0, 0.14)
+    property bool animateOnShow: AppearanceTokens.motion.popupAnimatesOnShow
+    property real startScale: AppearanceTokens.motion.popupStartScale
+    property real anchorOffset: AppearanceTokens.motion.popupAnchorOffset
+
+    property alias visible: cardWindow.visible
+    readonly property bool requestedOpen: root.animateOnShow
+        ? popupMotion.requestedOpen : cardWindow.visible
+    readonly property alias width: cardWindow.width
+    readonly property alias height: cardWindow.height
+
+    signal aboutToShow()
+    signal aboutToHide()
+    signal backdropClicked()
+
+    function show() {
+        cardWindow.visible = true
+        if (root.animateOnShow)
+            popupMotion.open()
+    }
+    function hide() {
+        if (root.animateOnShow && cardWindow.visible) {
+            popupMotion.close()
+            return
+        }
+        cardWindow.visible = false
+    }
+    function open() { root.show() }
+    function close() { root.hide() }
+    function toggle() { root.requestedOpen ? root.hide() : root.show() }
+
+    PanelWindow {
+        id: cardWindow
+        screen: root.targetScreen
+        color: "transparent"
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.namespace: "quickshell-kosfloatpanel-overlay"
+        WlrLayershell.keyboardFocus: root.modal && root.requestedOpen
+            ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        anchors { top: true; left: true; right: true; bottom: true }
+        exclusionMode: ExclusionMode.Ignore
+        visible: false
+
+        // The underlay is drawn below the card in this same surface, so it is a
+        // plain dim over the desktop rather than a field the card's glass
+        // samples: KWin only samples the surfaces below a blur.
+        Rectangle {
+            id: backdrop
+            anchors.fill: parent
+            visible: root.backdropVisible && root.backdropMode !== "none"
+            color: root.backdropMode === "none" ? "transparent" : Qt.rgba(root.backdropTint.r, root.backdropTint.g,
+                root.backdropTint.b, root.backdropEffectiveOpacity)
+            Behavior on color { ColorAnimation { duration: 140 } }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            enabled: root.modal && root.requestedOpen
+            onClicked: {
+                root.backdropClicked()
+                if (root.dismissOnBackdrop)
+                    root.close()
+            }
+        }
+
+        // The card's shadow: a sibling *below* the card, never a backdrop for
+        // it. Geometry mirrors the card exactly, motion included -- the same
+        // scale and translate are re-stated here with the scale origin moved to
+        // the card's top-left corner, which sits `margin` into this item.
+        KosCardShadow {
+            id: cardShadow
+            castEnabled: root.shadowEnabled
+            cardWidth: cardPanel.width
+            cardHeight: cardPanel.height
+            cornerRadius: cardPanel.radius
+            cornerExponent: cardPanel.cornerExponent
+            offsetX: root.shadowOffsetX
+            offsetY: root.shadowOffsetY
+            softness: root.shadowSoftness
+            shadowColor: root.shadowColor
+            debugMode: root.shadowDebugMode
+            x: cardPanel.x - margin
+            y: cardPanel.y - margin
+            opacity: cardPanel.opacity
+            transform: [
+                Scale {
+                    origin.x: cardShadow.margin + cardPanel.width / 2
+                    origin.y: cardShadow.margin + cardPanel.height / 2
+                    xScale: cardPanel.scale
+                    yScale: cardPanel.scale
+                },
+                Translate {
+                    y: (root.animateOnShow && popupMotion.progress < 0.999)
+                        ? Math.round((1 - popupMotion.progress) * root.anchorOffset) : 0
+                }
+            ]
+        }
+
+        LiquidGlassPanel {
+            id: cardPanel
+            z: 1
+            radius: root.radius
+            cornerExponent: root.cornerExponent
+            materialDepth: root.materialDepth
+            material: root.material
+            baseColor: root.baseColor
+            surfaceOpacity: root.surfaceOpacity
+            // A dialog is a decision surface: a table of buttons over the
+            // desktop, not a window onto it. In a tonal shell the plate is the
+            // only thing the desktop could read through, and the tonal branch
+            // ignores the `surfaceOpacity` above -- this is the knob that
+            // reaches it. The compositor scrim stays wired and is simply
+            // covered: KWin draws the backdrop before the client content.
+            tonalOpacity: 1.0
+            ambientPrimary: root.ambientPrimary
+            ambientSecondary: root.ambientSecondary
+            ambientStrength: root.ambientStrength
+            useKwinEffect: true
+            // Publish our own blur level to the compositor (protocol v4 set_blur);
+            // no other surface in the shell opts in, so dialogs stop inheriting the
+            // global BlurStrength while everything else keeps following it.
+            blurOverrideEnabled: root.blurOverrideEnabled
+            blurStrength: root.blurStrength
+            scrimEnabled: true
+            scrimLevel: root.scrimLevel
+            tintColor: ThemeService.isLightBackdrop ? "black" : "white"
+            tintOpacity: ThemeService.isLightBackdrop ? 0.38 : 0
+            scrimCap: root.fixedScrimOpacity
+            scrimDecay: 1.0
+            scrimFixed: root.scrimFixed
+            scrimGraphite: root.scrimFixed && root.fixedScrimTone === "graphite"
+            scrimPearl: root.scrimFixed && root.fixedScrimTone === "pearl"
+            scrimTintOverride: ThemeService.isLightBackdrop ? 0 : -1
+            maskContent: root.maskContent
+
+            readonly property real screenScale: root.targetScreen?.scale ?? Screen.devicePixelRatio ?? 1.0
+            width: cardHost.width + root.contentPadding * 2
+            height: cardHost.height + root.contentPadding * 2
+            x: Math.round(((cardWindow.width - width) / 2) * screenScale) / screenScale
+            y: Math.round(((cardWindow.height - height) / 2) * screenScale) / screenScale
+            scale: (root.animateOnShow && popupMotion.progress < 0.999)
+                ? root.startScale + (1 - root.startScale) * popupMotion.progress : 1
+            transformOrigin: Item.Center
+            opacity: root.animateOnShow ? popupMotion.progress : 1
+            enabled: !root.animateOnShow || popupMotion.interactive
+            transform: Translate {
+                y: (root.animateOnShow && popupMotion.progress < 0.999)
+                    ? Math.round((1 - popupMotion.progress) * root.anchorOffset) : 0
+            }
+
+            // Dynamic liquid glass plate matching Control Center
+            Rectangle {
+                id: cardUnderlay
+                anchors.fill: parent
+                radius: cardPanel.radius
+                color: ThemeService.isLightBackdrop
+                    ? Qt.rgba(0.12, 0.12, 0.16, 0.72)
+                    : Qt.rgba(0.12, 0.12, 0.16, 0.68)
+                border.width: 1
+                border.color: Qt.rgba(1.0, 1.0, 1.0, 0.16)
+                z: -1
+            }
+
+            Column {
+                id: cardHost
+                anchors.centerIn: parent
+                width: childrenRect.width
+                height: childrenRect.height
+                spacing: 8
+            }
+        }
+
+        mask: !root.requestedOpen ? emptyInputRegion : (root.backdropVisible ? null : cardRegion)
+        Region { id: emptyInputRegion }
+        Region { id: cardRegion; item: cardPanel }
+        Region { id: backdropBlurRegion; item: backdrop }
+        // One surface carries one blur region, so "dimBlur" widens this one to
+        // the whole screen -- which already covers the card.
+        // No form is excluded: a tonal card asks the compositor for the same
+        // frost and publishes no SurfaceShape to go with it.
+        BackgroundEffect.blurRegion: (cardWindow.visible
+                                      && cardPanel.useKwinEffect)
+            ? (root.backdropBlurActive ? backdropBlurRegion : cardPanel.blurRegion)
+            : null
+    }
+
+    PopupMotion {
+        id: popupMotion
+        onClosed: {
+            if (!popupMotion.requestedOpen)
+                cardWindow.visible = false
+        }
+    }
+
+    Connections {
+        target: cardWindow
+        function onVisibleChanged() {
+            if (cardWindow.visible)
+                root.aboutToShow()
+            else
+                root.aboutToHide()
+        }
+    }
+}

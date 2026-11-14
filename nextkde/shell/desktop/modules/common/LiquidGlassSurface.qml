@@ -1,0 +1,308 @@
+import QtQuick
+
+// A QML-only liquid finish for surfaces that already use compositor blur.
+// Keeping the material in Qt Quick preserves anti-aliased rounded corners.
+Rectangle {
+    id: root
+
+    // Where the inset specular lines begin, measured inward from each side. It
+    // follows radius by default. A host that shapes the corners with an SDF
+    // mask instead of Rectangle.radius -- see LiquidGlassPanel -- has to keep
+    // radius at 0 so the fill stays square for the mask to cut, and passes the
+    // visual radius here; otherwise those two lines would start inside the
+    // curve and be clipped by it.
+    property real cornerInset: radius
+
+    property color baseColor: Qt.rgba(0, 0, 0, 0.1)
+    // The theme policy chooses compositor glass/acrylic or a tonal surface.
+    // Keeping this decision here lets a future theme add a treatment without
+    // each popup gaining another style-specific branch.
+    readonly property bool usesMaterialSurface: AppearanceTokens.surface.usesTonalRoles
+    // Semantic material roles mirror the system vocabulary. They describe
+    // readability intent, never a fixed light/dark paint colour.
+    property string material: "regular" // "clear", "regular", "thick"
+    property real surfaceOpacity: 1.0
+    // Per-surface override of the tonal plate's alpha; -1 keeps the shared
+    // token. It exists because `surfaceOpacity` above never reaches the plate:
+    // the tonal branch is self-painted and reads panelOpacity directly, so
+    // every Material host's surfaceOpacity is dead. Editing the token instead
+    // would flatten the Bar, the Dock pill and every widget card with it.
+    // Ignored by the glass form, where the compositor owns the material.
+    property real tonalOpacity: -1
+    property color ambientPrimary: "transparent"
+    property color ambientSecondary: "transparent"
+    property real ambientStrength: 0.0
+    // Opt in for text-dense popups. Unlike the base material, this is a
+    // continuous dark scrim that becomes stronger only near white/black
+    // wallpaper, keeping ordinary imagery visibly behind the glass.
+    property bool adaptiveDarkScrim: false
+    // Some lightweight surfaces (for example notification cards) should keep
+    // the upper reflection without the heavier bottom inset edge.
+    property bool bottomEdgeVisible: true
+    property bool bottomShadeVisible: true
+    // Wallpaper changes should feel like pigment slowly moving through the
+    // glass rather than a theme colour snapping to its next value.
+    property int ambientTransitionDuration: 2600
+    property bool _ambientInitialized: false
+    property real _ambientProgress: 1.0
+    property color _ambientFromPrimary: ambientPrimary
+    property color _ambientFromSecondary: ambientSecondary
+    property color _displayAmbientPrimary: ambientPrimary
+    property color _displayAmbientSecondary: ambientSecondary
+    // 0 = dock/base surface, 1 = popup, 2 = contextual foreground menu.
+    property real materialDepth: 0.0
+    property real blurStrength: AppearanceConfigService.effectiveDockBlur
+    readonly property real normalizedBlurStrength: Math.max(
+        0.0, Math.min(1.0, blurStrength))
+    property real liquidStrength: AppearanceConfigService.effectiveDockLiquid
+    readonly property real normalizedLiquidStrength: Math.max(
+        0.0, Math.min(1.0, liquidStrength))
+    readonly property real materialOpacityScale: material === "clear" ? 0.58
+        : (material === "thick" ? 1.28 : 1.0)
+    readonly property real materialReflectionScale: material === "clear" ? 0.62
+        : (material === "thick" ? 0.86 : 1.0)
+    // QML is drawn after KWin's backdrop pass, so it cannot sample the exact
+    // pixels below itself. Wallpaper pigments plus the base layer are a stable
+    // local estimate for foreground selection; hysteresis prevents black/white
+    // text flickering when an ambient palette animates.
+    readonly property color estimatedMaterialColor: Qt.rgba(
+        baseColor.r * 0.72 + _displayAmbientPrimary.r * 0.28,
+        baseColor.g * 0.72 + _displayAmbientPrimary.g * 0.28,
+        baseColor.b * 0.72 + _displayAmbientPrimary.b * 0.28,
+        1.0)
+    readonly property real estimatedMaterialLuminance:
+        estimatedMaterialColor.r * 0.2126 + estimatedMaterialColor.g * 0.7152
+        + estimatedMaterialColor.b * 0.0722
+    readonly property real ambientLuminance: _displayAmbientPrimary.r * 0.2126
+        + _displayAmbientPrimary.g * 0.7152 + _displayAmbientPrimary.b * 0.0722
+    readonly property real ambientExtremeDistance: Math.min(
+        ambientLuminance, 1.0 - ambientLuminance)
+    readonly property real ambientExtremeProtection: {
+        const t = Math.max(0.0, Math.min(1.0,
+            (ambientExtremeDistance - 0.08) / 0.30))
+        return 1.0 - t * t * (3.0 - 2.0 * t)
+    }
+    readonly property real adaptiveScrimOpacity: {
+        if (!adaptiveDarkScrim)
+            return 0.0
+        const lightMix = Math.max(0.0, Math.min(1.0,
+            (ambientLuminance - 0.30) / 0.40))
+        const base = 0.04 + 0.035 * lightMix
+        const protection = (0.035 + 0.07 * lightMix)
+            * ambientExtremeProtection
+        return Math.min(0.20, (base + protection)
+            * (material === "thick" ? 1.18 : 1.0))
+    }
+    // The foreground hierarchy follows the resolved ink the same way the rest
+    // of the shell does: the fixed white hierarchy while the dark glass is in
+    // force, and the palette's dark ink once a light glass follows the
+    // appearance, so a light surface never paints white-on-white. The choice
+    // never samples the estimated wallpaper: picking black from it makes
+    // symbols flip while the material itself stays dark/transparent.
+    readonly property real baseLuminance: baseColor.r * 0.2126
+        + baseColor.g * 0.7152 + baseColor.b * 0.0722
+    readonly property bool isDarkSurface: baseLuminance < 0.5 || AppearanceTokens.isDarkTheme
+    readonly property color foregroundColor: usesMaterialSurface
+        ? AppearanceTokens.colors.surfaceForeground
+        : (isDarkSurface ? Qt.rgba(1.0, 1.0, 1.0, 1.0) : AppearanceTokens.content.glassInk())
+    readonly property color secondaryForegroundColor: usesMaterialSurface
+        ? AppearanceTokens.colors.surfaceVariantForeground
+        : (isDarkSurface ? Qt.rgba(1.0, 1.0, 1.0, 0.82) : AppearanceTokens.content.glassInk(0.82))
+    readonly property color tertiaryForegroundColor: usesMaterialSurface
+        ? Qt.rgba(AppearanceTokens.colors.surfaceVariantForeground.r,
+            AppearanceTokens.colors.surfaceVariantForeground.g,
+            AppearanceTokens.colors.surfaceVariantForeground.b, 0.70)
+        : (isDarkSurface ? Qt.rgba(1.0, 1.0, 1.0, 0.66) : AppearanceTokens.content.glassInk(0.66))
+    // Bright surfaces need less white overlay to remain translucent; darker
+    // ones retain the stronger reflection that makes the material readable.
+    readonly property real highlightFactor: baseLuminance > 0.6 ? 0.70 : 1.0
+    readonly property real materialHighlightFactor: highlightFactor
+        * (1.0 + Math.max(0.0, materialDepth) * 0.15)
+        * normalizedLiquidStrength
+    // Tint the glass body itself as well as its reflection overlay. This is
+    // what makes wallpaper adaptation readable on dark desktops instead of
+    // disappearing beneath the base surface.
+    // A restrained tint keeps the Dock primarily neutral glass while still
+    // letting its material pick up a little colour from the wallpaper.
+    readonly property real ambientBaseMix: Math.min(0.18, ambientStrength * 0.22)
+        * normalizedLiquidStrength
+
+    function _mixColor(from, to, progress) {
+        return Qt.rgba(
+            from.r + (to.r - from.r) * progress,
+            from.g + (to.g - from.g) * progress,
+            from.b + (to.b - from.b) * progress,
+            from.a + (to.a - from.a) * progress
+        )
+    }
+
+    function _beginAmbientTransition() {
+        if (!_ambientInitialized || !visible || usesMaterialSurface) {
+            if (_ambientInitialized)
+                ambientColourFlow.stop()
+            _ambientProgress = 1.0
+            _displayAmbientPrimary = ambientPrimary
+            _displayAmbientSecondary = ambientSecondary
+            return
+        }
+        _ambientFromPrimary = _displayAmbientPrimary
+        _ambientFromSecondary = _displayAmbientSecondary
+        _ambientProgress = 0.0
+        ambientColourFlow.restart()
+    }
+
+    onAmbientPrimaryChanged: _beginAmbientTransition()
+    onAmbientSecondaryChanged: _beginAmbientTransition()
+    onVisibleChanged: {
+        if (!visible)
+            _beginAmbientTransition()
+    }
+    onUsesMaterialSurfaceChanged: _beginAmbientTransition()
+    on_AmbientProgressChanged: {
+        _displayAmbientPrimary = _mixColor(_ambientFromPrimary, ambientPrimary, _ambientProgress)
+        _displayAmbientSecondary = _mixColor(_ambientFromSecondary, ambientSecondary, _ambientProgress)
+    }
+    Component.onCompleted: {
+        _displayAmbientPrimary = ambientPrimary
+        _displayAmbientSecondary = ambientSecondary
+        _ambientInitialized = true
+    }
+
+    NumberAnimation {
+        id: ambientColourFlow
+        target: root
+        property: "_ambientProgress"
+        to: 1.0
+        duration: root.ambientTransitionDuration
+        easing.type: Easing.InOutSine
+    }
+    Behavior on ambientStrength {
+        NumberAnimation { duration: 420; easing.type: Easing.InOutCubic }
+    }
+
+    readonly property color materialSurfaceColor: material === "thick"
+        ? AppearanceTokens.colors.layer2 : AppearanceTokens.surface.panelFill
+    // The plate's effective alpha: the shared token unless the host overrode
+    // it. Kept as one expression so the fill and its alpha cannot drift apart.
+    readonly property real tonalPlateOpacity: tonalOpacity >= 0
+        ? Math.min(1.0, tonalOpacity) : AppearanceTokens.surface.panelOpacity
+    color: usesMaterialSurface
+        ? Qt.rgba(materialSurfaceColor.r, materialSurfaceColor.g,
+            materialSurfaceColor.b, tonalPlateOpacity)
+        : Qt.rgba(
+            baseColor.r * (1.0 - ambientBaseMix) + _displayAmbientPrimary.r * ambientBaseMix,
+            baseColor.g * (1.0 - ambientBaseMix) + _displayAmbientPrimary.g * ambientBaseMix,
+            baseColor.b * (1.0 - ambientBaseMix) + _displayAmbientPrimary.b * ambientBaseMix,
+            Math.min(1.0, baseColor.a * root.materialOpacityScale)
+                * surfaceOpacity * root.normalizedBlurStrength
+        )
+
+    // Reinforce the side of the material opposite its foreground ink. A light
+    // lift supports dark labels; a dark scrim supports white labels. This is
+    // the static QML counterpart of Liquid Glass's dynamic-range adaptation.
+    Rectangle {
+        anchors.fill: parent
+        radius: root.radius
+        visible: !root.usesMaterialSurface && root.adaptiveScrimOpacity > 0.001
+        color: root.estimatedMaterialLuminance >= 0.58
+            ? Qt.rgba(1, 1, 1, root.adaptiveScrimOpacity * 0.72)
+            : Qt.rgba(0.018, 0.028, 0.052, root.adaptiveScrimOpacity)
+    }
+
+    // A soft top reflection gives the surface depth without a hard border.
+    Rectangle {
+        anchors.fill: parent
+        radius: root.radius
+        opacity: root.usesMaterialSurface ? 0 : root.normalizedLiquidStrength
+        gradient: Gradient {
+            orientation: Gradient.Vertical
+            GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.28 * root.materialHighlightFactor * root.materialReflectionScale) }
+            GradientStop { position: 0.12; color: Qt.rgba(0.88, 0.94, 1, 0.14 * root.materialHighlightFactor * root.materialReflectionScale) }
+            GradientStop { position: 0.32; color: Qt.rgba(1, 1, 1, 0.06 * root.materialHighlightFactor * root.materialReflectionScale) }
+            GradientStop { position: 0.60; color: Qt.rgba(0.86, 0.93, 1, 0.018 * root.materialHighlightFactor * root.materialReflectionScale) }
+            GradientStop {
+                position: 1.0
+                color: Qt.rgba(0, 0, 0, root.bottomShadeVisible
+                    ? (0.08 + Math.max(0.0, root.materialDepth) * 0.025)
+                        * root.normalizedLiquidStrength : 0.0)
+            }
+        }
+    }
+
+    // Wallpaper-derived tint: it stays deliberately below the specular layer
+    // so the material adapts to its environment without becoming a colour card.
+    Rectangle {
+        anchors.fill: parent
+        radius: root.radius
+        opacity: root.usesMaterialSurface ? 0 : root.normalizedLiquidStrength
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop {
+                position: 0.0
+                color: Qt.rgba(
+                    root._displayAmbientPrimary.r, root._displayAmbientPrimary.g, root._displayAmbientPrimary.b,
+                    root.ambientStrength * 0.26 * root.normalizedLiquidStrength
+                )
+            }
+            GradientStop {
+                position: 0.55
+                color: Qt.rgba(
+                    root._displayAmbientSecondary.r, root._displayAmbientSecondary.g, root._displayAmbientSecondary.b,
+                    root.ambientStrength * 0.14 * root.normalizedLiquidStrength
+                )
+            }
+            GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0.0) }
+        }
+    }
+
+    // A faint lateral tint makes the material feel thicker than a flat
+    // vertical gradient, while remaining subtle over both light and dark
+    // wallpapers.
+    Rectangle {
+        anchors.fill: parent
+        radius: root.radius
+        opacity: root.usesMaterialSurface ? 0 : root.normalizedLiquidStrength
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: Qt.rgba(0.72, 0.88, 1, 0.045 * root.materialHighlightFactor) }
+            GradientStop { position: 0.46; color: Qt.rgba(1, 1, 1, 0.0) }
+            GradientStop { position: 1.0; color: Qt.rgba(1, 0.84, 0.92, 0.035 * root.materialHighlightFactor) }
+        }
+    }
+
+    // Inset specular lines imply a glass edge without reintroducing a visible
+    // outline. Their endpoints begin after the curved corners.
+    Rectangle {
+        opacity: root.usesMaterialSurface ? 0 : root.normalizedLiquidStrength
+        x: Math.min(parent.width / 2, root.cornerInset + 3)
+        y: 0.8
+        width: Math.max(0, parent.width - x * 2)
+        height: 0.8
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.0) }
+            GradientStop { position: 0.18; color: Qt.rgba(1, 1, 1, 0.22 * root.materialHighlightFactor) }
+            GradientStop { position: 0.50; color: Qt.rgba(1, 1, 1, 0.35 * root.materialHighlightFactor) }
+            GradientStop { position: 0.82; color: Qt.rgba(1, 1, 1, 0.22 * root.materialHighlightFactor) }
+            GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0.0) }
+        }
+    }
+
+    Rectangle {
+        visible: root.bottomEdgeVisible
+        opacity: root.usesMaterialSurface ? 0 : root.normalizedLiquidStrength
+        x: Math.min(parent.width / 2, root.cornerInset + 3)
+        y: parent.height - 2
+        width: Math.max(0, parent.width - x * 2)
+        height: 1
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: Qt.rgba(0.82, 0.90, 1.0, 0.0) }
+            GradientStop { position: 0.20; color: Qt.rgba(0.82, 0.90, 1.0, 0.045 * root.normalizedLiquidStrength) }
+            GradientStop { position: 0.50; color: Qt.rgba(0.88, 0.94, 1.0, 0.10 * root.normalizedLiquidStrength) }
+            GradientStop { position: 0.80; color: Qt.rgba(0.82, 0.90, 1.0, 0.045 * root.normalizedLiquidStrength) }
+            GradientStop { position: 1.0; color: Qt.rgba(0.82, 0.90, 1.0, 0.0) }
+        }
+    }
+
+}
