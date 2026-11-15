@@ -161,6 +161,7 @@ in
   users.users."bigl" = {
     isNormalUser = true;
     description = "bigl";
+    initialPassword = "password";
     extraGroups = [ "networkmanager" "wheel" "unifi-endpoint" ];
   };
 

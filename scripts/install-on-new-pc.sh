@@ -97,6 +97,12 @@ echo "    Starte nixos-install (--flake .#$FLAKE_TARGET)...     "
 echo "=========================================================="
 nixos-install --flake "$DOTFILES_DIR#$FLAKE_TARGET"
 
+echo ""
+echo "=========================================================="
+echo "    Passwort für Benutzer 'bigl' festlegen:               "
+echo "=========================================================="
+nixos-enter --root /mnt -c 'passwd bigl'
+
 echo "=========================================================="
 echo "    INSTALLATION ERFOLGREICH ABGESCHLOSSEN!               "
 echo "    Du kannst den Rechner jetzt mit 'reboot' neustarten.  "

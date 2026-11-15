@@ -20,6 +20,8 @@ curl -sL https://raw.githubusercontent.com/lakape/dotfiles/master/scripts/instal
 4. Klont dieses Repository nach `/mnt/etc/dotfiles`.
 5. Übernimmt die generierte `hardware-configuration.nix`.
 6. Führt `nixos-install --flake /mnt/etc/dotfiles#nixos` aus.
+7. Fragt direkt nach deinem Wunschpasswort für den Benutzer `bigl`.
+   *(Falls manuell installiert wird: `sudo nixos-enter --root /mnt -c 'passwd bigl'` oder mit dem Fallback-Passwort `password` einloggen).*
 
 Nach einem anschließenden `reboot` startet der PC direkt in deinen fertigen KOS-Desktop!
 
