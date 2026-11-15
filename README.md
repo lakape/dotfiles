@@ -32,13 +32,13 @@ curl -sL https://raw.githubusercontent.com/lakape/dotfiles/master/scripts/instal
 ### Installation Procedure
 
 1. Identifies the target block device (NVMe, SATA, or VirtIO) and prompts for confirmation.
-2. Creates a GPT partition table with a 512 MiB EFI system partition and an ext4 root partition spanning the remainder.
-3. Formats filesystems (`vfat` on `/boot`, `ext4` on `/`).
-4. Mounts partitions to `/mnt` and `/mnt/boot`.
+2. Creates a GPT partition table with a 512 MiB EFI system partition and a Btrfs root partition spanning the remainder.
+3. Formats filesystems (`vfat` on `/boot`, `btrfs` on `/`).
+4. Creates Btrfs subvolumes (`home`, `nix`) and mounts `/`, `/home`, and `/nix` with transparent ZSTD compression.
 5. Runs `nixos-generate-config --root /mnt` to capture local hardware parameters.
 6. Clones this repository into `/mnt/etc/dotfiles` and links the generated `hardware-configuration.nix`.
-7. Builds and installs the system via `nixos-install --flake /mnt/etc/dotfiles#nixos`.
-8. Prompts to set the password for the primary user (`bigl`) via `nixos-enter`.
+7. Builds and installs the system via `nixos-install --no-root-passwd --flake /mnt/etc/dotfiles#nixos`.
+8. Prompts to set passwords for both `root` and the primary user `bigl` via `nixos-enter`.
 
 Once complete, reboot into the installed system:
 
@@ -60,23 +60,30 @@ Replace `/dev/nvme0n1` with your actual disk name:
 parted -s /dev/nvme0n1 mklabel gpt
 parted -s /dev/nvme0n1 mkpart ESP fat32 1MiB 512MiB
 parted -s /dev/nvme0n1 set 1 esp on
-parted -s /dev/nvme0n1 mkpart primary ext4 512MiB 100%
+parted -s /dev/nvme0n1 mkpart primary 512MiB 100%
 ```
 
-### 2. Format and Mount Filesystems
+### 2. Format and Mount Filesystems (Btrfs with Subvolumes)
 
 For NVMe drives (`p1` and `p2`):
 
 ```bash
 mkfs.fat -F 32 -n boot /dev/nvme0n1p1
-mkfs.ext4 -F -L nixos /dev/nvme0n1p2
+mkfs.btrfs -f -L nixos /dev/nvme0n1p2
 
-mount /dev/nvme0n1p2 /mnt
+# Mount root and create subvolumes
+mount -t btrfs -o compress=zstd /dev/nvme0n1p2 /mnt
+btrfs subvolume create /mnt/home
+btrfs subvolume create /mnt/nix
 mkdir -p /mnt/boot
+
+# Mount subvolumes and EFI boot partition
+mount -t btrfs -o subvol=home,compress=zstd /dev/nvme0n1p2 /mnt/home
+mount -t btrfs -o subvol=nix,compress=zstd,noatime /dev/nvme0n1p2 /mnt/nix
 mount /dev/nvme0n1p1 /mnt/boot
 ```
 
-For SATA/VirtIO drives (`/dev/sda1`, `/dev/vda1`), use `1` and `2` respectively.
+For SATA/VirtIO drives (`/dev/sda1`/`/dev/sda2` or `/dev/vda1`/`/dev/vda2`), adjust the device paths accordingly.
 
 ### 3. Generate Hardware Configuration
 
@@ -94,18 +101,20 @@ cp /mnt/etc/nixos/hardware-configuration.nix /mnt/etc/dotfiles/hardware-configur
 ### 5. Install System
 
 ```bash
-nixos-install --flake /mnt/etc/dotfiles#nixos
+nixos-install --no-root-passwd --flake /mnt/etc/dotfiles#nixos
 ```
 
-### 6. Set User Password
-
-Set a password for the `bigl` user account:
+### 6. Set Root and User Passwords
 
 ```bash
+# Set password for root:
+nixos-enter --root /mnt -c 'passwd root'
+
+# Set password for user 'bigl':
 nixos-enter --root /mnt -c 'passwd bigl'
 ```
 
-*(Note: `configuration.nix` includes an `initialPassword = "password"` fallback so you are never locked out if this step is omitted, but setting a personal password here is recommended).*
+*(Note: `configuration.nix` includes an `initialPassword = "password"` fallback for `bigl` so you are never locked out if user creation is unattended, but setting personal passwords here is recommended).*
 
 ### 7. Reboot
 

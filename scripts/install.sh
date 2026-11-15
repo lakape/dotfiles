@@ -50,11 +50,11 @@ echo "[1/6] Unmounting existing partitions..."
 umount -R /mnt 2>/dev/null || true
 swapoff -a 2>/dev/null || true
 
-echo "[2/6] Partitioning '$TARGET_DISK' (GPT: 512MiB EFI, rest ext4 root)..."
+echo "[2/6] Partitioning '$TARGET_DISK' (GPT: 512MiB EFI, rest Btrfs root)..."
 parted -s "$TARGET_DISK" mklabel gpt
 parted -s "$TARGET_DISK" mkpart ESP fat32 1MiB 512MiB
 parted -s "$TARGET_DISK" set 1 esp on
-parted -s "$TARGET_DISK" mkpart primary ext4 512MiB 100%
+parted -s "$TARGET_DISK" mkpart primary 512MiB 100%
 
 # Determine partition paths (NVMe: /dev/nvme0n1p1 vs SATA: /dev/sda1 vs VirtIO: /dev/vda1)
 if [[ "$TARGET_DISK" =~ [0-9]$ ]]; then
@@ -67,13 +67,18 @@ fi
 
 sleep 2
 
-echo "[3/6] Formatting filesystems ($BOOT_PART and $ROOT_PART)..."
+echo "[3/6] Formatting filesystems (FAT32 on boot, Btrfs on root)..."
 mkfs.fat -F 32 -n boot "$BOOT_PART"
-mkfs.ext4 -F -L nixos "$ROOT_PART"
+mkfs.btrfs -f -L nixos "$ROOT_PART"
 
-echo "[4/6] Mounting target filesystems to /mnt..."
-mount "$ROOT_PART" /mnt
+echo "[4/6] Creating Btrfs subvolumes and mounting to /mnt..."
+mount -t btrfs -o compress=zstd "$ROOT_PART" /mnt
+btrfs subvolume create /mnt/home
+btrfs subvolume create /mnt/nix
 mkdir -p /mnt/boot
+
+mount -t btrfs -o subvol=home,compress=zstd "$ROOT_PART" /mnt/home
+mount -t btrfs -o subvol=nix,compress=zstd,noatime "$ROOT_PART" /mnt/nix
 mount "$BOOT_PART" /mnt/boot
 
 echo "[5/6] Generating hardware configuration for target machine..."
@@ -91,7 +96,13 @@ FLAKE_TARGET="nixos"
 echo "=========================================================="
 echo "    Running nixos-install (--flake .#$FLAKE_TARGET)...   "
 echo "=========================================================="
-nixos-install --flake "$DOTFILES_DIR#$FLAKE_TARGET"
+nixos-install --no-root-passwd --flake "$DOTFILES_DIR#$FLAKE_TARGET"
+
+echo ""
+echo "=========================================================="
+echo "    Set password for user 'root':                         "
+echo "=========================================================="
+nixos-enter --root /mnt -c 'passwd root'
 
 echo ""
 echo "=========================================================="
