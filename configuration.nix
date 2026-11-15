@@ -265,17 +265,17 @@ in
     "L+ /home/bigl/.local/bin/antigravity - - - - ${antigravity}/bin/antigravity"
     "d /home/bigl/.local/share/icons/hicolor/512x512/apps 0755 bigl users -"
     "C+ /home/bigl/.local/share/icons/hicolor/512x512/apps/antigravity.png 0644 bigl users - ${./dotfiles/icons/antigravity.png}"
-    # uBlock Origin pre-installed for ungoogled-chromium (100% reproducible)
+    # uBlock Origin pre-installed for ungoogled-chromium (100% reproducible baseline)
     "d /home/bigl/.local/share/ungoogled-chromium 0755 bigl users -"
     "d /home/bigl/.local/share/ungoogled-chromium/extensions 0755 bigl users -"
-    "C+ /home/bigl/.local/share/ungoogled-chromium/extensions/ublock.crx 0644 bigl users - ${ublock-crx}"
+    "C /home/bigl/.local/share/ungoogled-chromium/extensions/ublock.crx 0644 bigl users - ${ublock-crx}"
     "d /home/bigl/.config/chromium 0755 bigl users -"
     "d \"/home/bigl/.config/chromium/External Extensions\" 0755 bigl users -"
-    "C+ \"/home/bigl/.config/chromium/External Extensions/fkgkibajhfbepljeaefdnfnegdcjomkh.json\" 0644 bigl users - ${ublock-manifest}"
+    "C \"/home/bigl/.config/chromium/External Extensions/fkgkibajhfbepljeaefdnfnegdcjomkh.json\" 0644 bigl users - ${ublock-manifest}"
     # System-wide Chromium extension fallback
     "d /usr/share/chromium 0755 root root -"
     "d /usr/share/chromium/extensions 0755 root root -"
-    "C+ /usr/share/chromium/extensions/fkgkibajhfbepljeaefdnfnegdcjomkh.json 0644 root root - ${ublock-manifest}"
+    "C /usr/share/chromium/extensions/fkgkibajhfbepljeaefdnfnegdcjomkh.json 0644 root root - ${ublock-manifest}"
   ];
 
   # Allow unfree packages
@@ -431,7 +431,7 @@ PYEOF
     description = "Check for uBlock Origin updates daily";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnStartupSec = "3min";
+      OnStartupSec = "30s";
       OnCalendar = "daily";
       Persistent = true;
     };
