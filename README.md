@@ -51,7 +51,7 @@ cp /mnt/etc/nixos/hardware-configuration.nix /mnt/etc/dotfiles/
 ### 4. Installation starten
 ```bash
 # Auf jedem normalen Rechner (Intel / AMD / VM):
-nixos-install --flake /mnt/etc/dotfiles
+nixos-install --flake /mnt/etc/dotfiles#nixos
 
 # Auf Rechnern mit dedizierter NVIDIA-GPU:
 nixos-install --flake /mnt/etc/dotfiles#workstation
