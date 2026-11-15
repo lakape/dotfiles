@@ -1,62 +1,188 @@
-# Universal & 100% Reproducible NixOS & KOS Configuration (for ANY PC)
+# Unified NixOS & KOS Desktop Configuration
 
-Dieses Repository enthält deine vollständige, zu **100 % reproduzierbare NixOS & NextKDE (KOS)** Desktop-Konfiguration in **einer einzigen zentralen `configuration.nix`**. Sie ist so konfiguriert, dass sie **auf jedem beliebigen Computer** (virtuelle Maschine, Laptop, PC mit Intel, AMD oder NVIDIA) identisch und stabil läuft.
+Flake-based declarative NixOS configuration providing a fully integrated desktop environment based on KDE Plasma 6 and NextKDE (KOS desktop shell).
+
+The setup is consolidated into a single configuration file (`configuration.nix`) and designed to run identically across any physical machine (Intel, AMD, NVIDIA) or virtual machine.
 
 ---
 
-## ⚡ Universelle 1-Klick-Installation auf JEDEM PC
+## Hardware & Driver Architecture
 
-Egal ob auf einem neuen Rechner, Laptop oder in einer Test-VM:
-Starte einfach das NixOS-Live-Medium und führe diesen einzigen Befehl aus:
+- **Graphics:** `videoDrivers = [ "nvidia" "modesetting" ]`. Machines with an NVIDIA GPU automatically load the proprietary driver with PRIME offload. Machines without an NVIDIA GPU (Intel/AMD laptops, virtual machines) cleanly fall back to kernel modesetting via Mesa.
+- **Architecture:** x86_64 UEFI.
+- **Storage footprint:** ~13–14 GiB initial disk footprint post-installation. A minimum disk partition of 50 GiB is recommended for ongoing generations, build caches, and user data.
+- **Integrated tooling:** Antigravity IDE (official Google release, Wayland-native), Ungoogled Chromium, PipeWire audio, Podman container engine, Node.js, Python 3, PostgreSQL, Apple SF-Pro typography.
+
+---
+
+## Automated Installation
+
+Boot the target machine from a standard NixOS Minimal or Graphical live USB installer, verify network connectivity, and execute:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/lakape/dotfiles/master/scripts/install-on-new-pc.sh | bash
+curl -sL https://raw.githubusercontent.com/lakape/dotfiles/master/scripts/install.sh | bash
 ```
 
-**Was das Skript vollautomatisch erledigt:**
-1. Erkennt automatisch die Festplatte (NVMe, SATA, VirtIO) und partitioniert sie (512MB EFI + Root).
-2. Formatiert die Partitionen und mountet sie nach `/mnt`.
-3. Erfasst die Hardware des aktuellen PCs (`nixos-generate-config`).
-4. Klont dieses Repository nach `/mnt/etc/dotfiles`.
-5. Übernimmt die generierte `hardware-configuration.nix`.
-6. Führt `nixos-install --flake /mnt/etc/dotfiles#nixos` aus.
-7. Fragt direkt nach deinem Wunschpasswort für den Benutzer `bigl`.
-   *(Falls manuell installiert wird: `sudo nixos-enter --root /mnt -c 'passwd bigl'` oder mit dem Fallback-Passwort `password` einloggen).*
+Alternatively, pass the target disk directly as an argument:
 
-Nach einem anschließenden `reboot` startet der PC direkt in deinen fertigen KOS-Desktop!
+```bash
+curl -sL https://raw.githubusercontent.com/lakape/dotfiles/master/scripts/install.sh | bash -s -- /dev/nvme0n1
+```
+
+### Installation Procedure
+
+1. Identifies the target block device (NVMe, SATA, or VirtIO) and prompts for confirmation.
+2. Creates a GPT partition table with a 512 MiB EFI system partition and an ext4 root partition spanning the remainder.
+3. Formats filesystems (`vfat` on `/boot`, `ext4` on `/`).
+4. Mounts partitions to `/mnt` and `/mnt/boot`.
+5. Runs `nixos-generate-config --root /mnt` to capture local hardware parameters.
+6. Clones this repository into `/mnt/etc/dotfiles` and links the generated `hardware-configuration.nix`.
+7. Builds and installs the system via `nixos-install --flake /mnt/etc/dotfiles#nixos`.
+8. Prompts to set the password for the primary user (`bigl`) via `nixos-enter`.
+
+Once complete, reboot into the installed system:
+
+```bash
+reboot
+```
 
 ---
 
-## 📁 Repository-Struktur (Flach und Eindeutig)
+## Manual Installation
+
+If you prefer to partition manually or cannot use the automated script, follow these steps from the NixOS live environment:
+
+### 1. Partition the Disk
+
+Replace `/dev/nvme0n1` with your actual disk name:
+
+```bash
+parted -s /dev/nvme0n1 mklabel gpt
+parted -s /dev/nvme0n1 mkpart ESP fat32 1MiB 512MiB
+parted -s /dev/nvme0n1 set 1 esp on
+parted -s /dev/nvme0n1 mkpart primary ext4 512MiB 100%
+```
+
+### 2. Format and Mount Filesystems
+
+For NVMe drives (`p1` and `p2`):
+
+```bash
+mkfs.fat -F 32 -n boot /dev/nvme0n1p1
+mkfs.ext4 -F -L nixos /dev/nvme0n1p2
+
+mount /dev/nvme0n1p2 /mnt
+mkdir -p /mnt/boot
+mount /dev/nvme0n1p1 /mnt/boot
+```
+
+For SATA/VirtIO drives (`/dev/sda1`, `/dev/vda1`), use `1` and `2` respectively.
+
+### 3. Generate Hardware Configuration
+
+```bash
+nixos-generate-config --root /mnt
+```
+
+### 4. Clone Repository
+
+```bash
+git clone https://github.com/lakape/dotfiles.git /mnt/etc/dotfiles
+cp /mnt/etc/nixos/hardware-configuration.nix /mnt/etc/dotfiles/hardware-configuration.nix
+```
+
+### 5. Install System
+
+```bash
+nixos-install --flake /mnt/etc/dotfiles#nixos
+```
+
+### 6. Set User Password
+
+Set a password for the `bigl` user account:
+
+```bash
+nixos-enter --root /mnt -c 'passwd bigl'
+```
+
+*(Note: `configuration.nix` includes an `initialPassword = "password"` fallback so you are never locked out if this step is omitted, but setting a personal password here is recommended).*
+
+### 7. Reboot
+
+```bash
+reboot
+```
+
+---
+
+## Post-Installation & Daily Workflow
+
+### Applying System Updates
+
+After modifying `/home/bigl/dotfiles/configuration.nix` or updating flake inputs:
+
+```bash
+rebuild
+# Alias for: sudo nixos-rebuild switch --flake /home/bigl/dotfiles#nixos
+```
+
+To update flake inputs (e.g. nixpkgs, nextkde):
+
+```bash
+update-flake
+# Alias for: cd /home/bigl/dotfiles && nix flake update
+```
+
+### Desktop Settings Synchronization
+
+GUI configurations (KDE shortcuts, KOS window appearance, buttons, dock state) are tracked in the repository:
+
+- **Export desktop changes to repository:**
+  ```bash
+  ~/dotfiles/scripts/sync-desktop-to-repo.sh
+  cd ~/dotfiles && git commit -am "chore: update desktop preferences" && git push
+  ```
+
+- **Apply repository configurations to the active user profile:**
+  ```bash
+  ~/dotfiles/scripts/apply-desktop-from-repo.sh
+  ```
+
+### Storage Maintenance
+
+NixOS retains previous generations for rollbacks. To prevent unbounded disk growth, automatic weekly garbage collection and hard-link deduplication are enabled in `configuration.nix`:
+
+- Weekly garbage collection: deletes generations older than 14 days (`nix.gc.options = "--delete-older-than 14d"`).
+- Weekly store deduplication: hardlinks duplicate store files (`nix.optimise.automatic = true`).
+
+To trigger an immediate manual cleanup:
+
+```bash
+sudo nix-collect-garbage -d
+sudo nix-store --optimise
+```
+
+---
+
+## Repository Structure
 
 ```
 ~/dotfiles/
-├── flake.nix                  # Haupteinstiegspunkt (Flake-Target: nixos / default)
-├── configuration.nix          # DIE einzige Konfiguration (KDE Plasma 6, KOS, Tools, Schriften, Shortcuts)
-├── hardware-configuration.nix # Hardware-Scan der Zielmaschine (vom Installer generiert)
-├── dotfiles/
+├── flake.nix                  # Flake entrypoint (targets: 'nixos' and 'default')
+├── flake.lock                 # Pinned dependencies
+├── configuration.nix          # Consolidated system specification
+├── hardware-configuration.nix # Target machine hardware scan
+├── dotfiles/                  # Declaratively linked configuration assets
+│   ├── applications/          # Desktop entry overrides
+│   ├── icons/                 # Application icons (Antigravity 512x512)
 │   ├── kde/                   # kwinrc, kglobalshortcutsrc, kdeglobals
-│   └── kos/                   # window-appearance.json, window-buttons.json etc.
-├── fonts/                     # Apple SF-Pro Schriftarten
+│   ├── kos/                   # Window appearance and button schemas
+│   ├── quickshell-kos/        # Initial quickshell state (dock, pinned apps)
+│   └── wallpapers/            # Desktop backgrounds
+├── fonts/                     # Apple SF-Pro font collection
+├── nextkde/                   # NextKDE / KOS desktop shell source tree
 └── scripts/
-    ├── install-on-new-pc.sh   # Universeller 1-Klick-Installer für JEDEN Rechner
-    ├── sync-desktop-to-repo.sh    # Holt GUI-Änderungen ins Git-Repo
-    └── apply-desktop-from-repo.sh # Wendet Repo-Einstellungen auf ~/.config an
+    ├── install.sh             # Automated installation script
+    ├── sync-desktop-to-repo.sh    # Captures live desktop settings into repo
+    └── apply-desktop-from-repo.sh # Replaces user configs with repo state
 ```
-
----
-
-## 🖥️ Tolerante Grafiktreiber
-
-In `configuration.nix` ist `videoDrivers = [ "nvidia" "modesetting" ];` gesetzt:
-- Hat der Rechner eine **NVIDIA GPU**, lädt er die proprietären NVIDIA-Treiber mit PRIME-Offload.
-- Hat der Rechner **keine NVIDIA GPU** (z. B. Intel/AMD-Laptop oder VM), fällt er automatisch und absturzfrei auf den Standard-Mesa/Modesetting-Treiber zurück.
-
----
-
-## 🔄 Änderungen synchronisieren
-
-Wenn du Shortcuts oder KOS-Einstellungen im GUI änderst:
-1. `./scripts/sync-desktop-to-repo.sh` ausführen
-2. `git commit -am "Update desktop shortcuts" && git push`
-3. Auf jedem anderen Rechner einfach `git pull && rebuild` ausführen.

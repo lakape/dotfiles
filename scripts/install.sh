@@ -1,29 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Automatisch zu root wechseln, falls als normaler Benutzer gestartet
+# Elevate to root if not already
 if [ "$EUID" -ne 0 ]; then
   exec sudo bash "$0" "$@"
 fi
 
 echo "=========================================================="
-echo "    Universeller NixOS & KOS Installer für JEDEN PC      "
+echo "    Universal NixOS & KOS Installation Script             "
 echo "=========================================================="
 
-# 1. Festplatte ermitteln
 TARGET_DISK="${1:-}"
 
 if [ -z "$TARGET_DISK" ]; then
     echo ""
-    echo "Gefundene Festplatten auf diesem System:"
+    echo "Detected block devices on this system:"
     lsblk -d -n -o NAME,SIZE,MODEL,TYPE | awk '$4=="disk"{print "  /dev/" $1 " (" $2 ", " $3 ")"}'
     echo ""
-    
-    # Automatischen Vorschlag wählen (erste gefundene Platte)
+
     DEFAULT_DISK=$(lsblk -d -n -o NAME,TYPE | awk '$2=="disk"{print "/dev/"$1; exit}')
-    
+
     if [ -t 0 ]; then
-        read -r -p "Auf welche Festplatte soll installiert werden? [Standard: ${DEFAULT_DISK}]: " USER_INPUT
+        read -r -p "Target disk [Default: ${DEFAULT_DISK}]: " USER_INPUT
         TARGET_DISK="${USER_INPUT:-$DEFAULT_DISK}"
     else
         TARGET_DISK="$DEFAULT_DISK"
@@ -31,34 +29,34 @@ if [ -z "$TARGET_DISK" ]; then
 fi
 
 if [ ! -b "$TARGET_DISK" ]; then
-    echo "Fehler: Festplatte '$TARGET_DISK' wurde nicht gefunden!"
+    echo "Error: Device '$TARGET_DISK' not found."
     exit 1
 fi
 
-echo "Ausgewählte Zielfestplatte: $TARGET_DISK"
+echo "Selected target disk: $TARGET_DISK"
 
 if [ -t 0 ]; then
     echo ""
-    echo "ACHTUNG: Alle bestehenden Daten auf '$TARGET_DISK' werden gelöscht!"
-    read -r -p "Möchtest du wirklich fortfahren? (ja/nein): " CONFIRM
-    if [[ "$CONFIRM" != "ja" && "$CONFIRM" != "y" && "$CONFIRM" != "yes" ]]; then
-        echo "Installation abgebrochen."
+    echo "WARNING: All existing data on '$TARGET_DISK' will be permanently erased!"
+    read -r -p "Are you sure you want to proceed? (y/N): " CONFIRM
+    if [[ "$CONFIRM" != "y" && "$CONFIRM" != "yes" && "$CONFIRM" != "ja" ]]; then
+        echo "Installation aborted."
         exit 0
     fi
 fi
 
 echo ""
-echo "[1/6] Löse eventuell bestehende Mounts..."
+echo "[1/6] Unmounting existing partitions..."
 umount -R /mnt 2>/dev/null || true
 swapoff -a 2>/dev/null || true
 
-echo "[2/6] Partitioniere '$TARGET_DISK' (GPT: 512MiB EFI, Rest Root)..."
+echo "[2/6] Partitioning '$TARGET_DISK' (GPT: 512MiB EFI, rest ext4 root)..."
 parted -s "$TARGET_DISK" mklabel gpt
 parted -s "$TARGET_DISK" mkpart ESP fat32 1MiB 512MiB
 parted -s "$TARGET_DISK" set 1 esp on
 parted -s "$TARGET_DISK" mkpart primary ext4 512MiB 100%
 
-# Partitionspfade ermitteln (NVMe: /dev/nvme0n1p1 vs SATA: /dev/sda1 vs VirtIO: /dev/vda1)
+# Determine partition paths (NVMe: /dev/nvme0n1p1 vs SATA: /dev/sda1 vs VirtIO: /dev/vda1)
 if [[ "$TARGET_DISK" =~ [0-9]$ ]]; then
     BOOT_PART="${TARGET_DISK}p1"
     ROOT_PART="${TARGET_DISK}p2"
@@ -67,43 +65,41 @@ else
     ROOT_PART="${TARGET_DISK}2"
 fi
 
-# Kernel Zeit geben, die neue Partitionstabelle einzulesen
 sleep 2
 
-echo "[3/6] Formatiere Dateisysteme ($BOOT_PART und $ROOT_PART)..."
+echo "[3/6] Formatting filesystems ($BOOT_PART and $ROOT_PART)..."
 mkfs.fat -F 32 -n boot "$BOOT_PART"
 mkfs.ext4 -F -L nixos "$ROOT_PART"
 
-echo "[4/6] Mounte Partitionen nach /mnt..."
+echo "[4/6] Mounting target filesystems to /mnt..."
 mount "$ROOT_PART" /mnt
 mkdir -p /mnt/boot
 mount "$BOOT_PART" /mnt/boot
 
-echo "[5/6] Erfasse Hardware-Konfiguration dieses PCs..."
+echo "[5/6] Generating hardware configuration for target machine..."
 nixos-generate-config --root /mnt
 
-echo "[6/6] Klone dotfiles-Repository..."
+echo "[6/6] Cloning configuration repository..."
 DOTFILES_DIR="/mnt/etc/dotfiles"
 if [ ! -d "$DOTFILES_DIR" ]; then
     git clone https://github.com/lakape/dotfiles.git "$DOTFILES_DIR"
 fi
 cp /mnt/etc/nixos/hardware-configuration.nix "$DOTFILES_DIR/hardware-configuration.nix"
 
-# Einzige Konfiguration fuer alle Rechner
 FLAKE_TARGET="nixos"
 
 echo "=========================================================="
-echo "    Starte nixos-install (--flake .#$FLAKE_TARGET)...     "
+echo "    Running nixos-install (--flake .#$FLAKE_TARGET)...   "
 echo "=========================================================="
 nixos-install --flake "$DOTFILES_DIR#$FLAKE_TARGET"
 
 echo ""
 echo "=========================================================="
-echo "    Passwort für Benutzer 'bigl' festlegen:               "
+echo "    Set password for user 'bigl':                         "
 echo "=========================================================="
 nixos-enter --root /mnt -c 'passwd bigl'
 
 echo "=========================================================="
-echo "    INSTALLATION ERFOLGREICH ABGESCHLOSSEN!               "
-echo "    Du kannst den Rechner jetzt mit 'reboot' neustarten.  "
+echo "    Installation completed successfully.                  "
+echo "    You can now reboot into your new system with: reboot  "
 echo "=========================================================="
