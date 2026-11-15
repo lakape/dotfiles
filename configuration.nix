@@ -1,26 +1,24 @@
+# 100% Reproducible Unified NixOS Configuration
+# Everything in ONE single configuration file for any computer.
+
 { config, pkgs, lib, ... }:
 
 {
+  imports = [
+    ./hardware-configuration.nix
+  ];
+
   # Bootloader EFI settings
   boot.loader.systemd-boot.enable = true;
   boot.loader.systemd-boot.configurationLimit = 10;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  # Networking
-  networking.hostName = lib.mkDefault "nixos";
-  networking.networkmanager.enable = true;
-
   # Latest Linux kernel
   boot.kernelPackages = pkgs.linuxPackages_latest;
 
-  # Universal Graphics & Hardware Acceleration (Mesa KMS works on Intel, AMD, VirtIO, QEMU, etc.)
-  hardware.graphics = {
-    enable = true;
-    enable32Bit = true;
-    extraPackages = with pkgs; [
-      intel-media-driver
-    ];
-  };
+  # Networking
+  networking.hostName = "nixos";
+  networking.networkmanager.enable = true;
 
   # Time & Locales
   time.timeZone = "Europe/Vienna";
@@ -60,10 +58,12 @@
     variant = "";
   };
 
-  # Printing disabled
-  services.printing.enable = false;
+  # NextKDE / KOS Desktop Shell
+  services.kos.enable = true;
+  services.kos.weather.enable = false;
 
   # Sound with PipeWire
+  services.printing.enable = false;
   services.pulseaudio.enable = false;
   security.rtkit.enable = true;
   services.pipewire = {
@@ -77,6 +77,34 @@
   hardware.bluetooth = {
     enable = true;
     powerOnBoot = false;
+  };
+
+  # Universal Graphics & Hardware Acceleration (Mesa for Intel, AMD, VirtIO, QEMU)
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
+    extraPackages = with pkgs; [
+      intel-media-driver
+    ];
+  };
+
+  # Tolerant Video Drivers: Loads NVIDIA when hardware present, falls back to modesetting
+  services.xserver.videoDrivers = [ "nvidia" "modesetting" ];
+  hardware.nvidia = {
+    modesetting.enable = true;
+    powerManagement.enable = true;
+    powerManagement.finegrained = true;
+    open = true;
+    nvidiaSettings = true;
+    package = config.boot.kernelPackages.nvidiaPackages.stable;
+    prime = {
+      offload = {
+        enable = true;
+        enableOffloadCmd = true;
+      };
+      intelBusId = "PCI:0:2:0";
+      nvidiaBusId = "PCI:1:0:0";
+    };
   };
 
   # Wayland Native support for Chromium and Electron apps
@@ -140,8 +168,7 @@
     });
   };
 
-  # Browser symlinks for Antigravity & tool automation
-  # and /usr/bin links for UniFi Endpoint PrivilegedHelper
+  # Browser symlinks & declarative desktop seeding for 100% reproducibility
   systemd.tmpfiles.rules = [
     "L+ /opt/google/chrome/chrome - - - - ${pkgs.ungoogled-chromium}/bin/chromium"
     "L+ /usr/bin/google-chrome - - - - ${pkgs.ungoogled-chromium}/bin/chromium"
@@ -151,6 +178,15 @@
     "L+ /usr/bin/ungoogled-chromium - - - - ${pkgs.ungoogled-chromium}/bin/chromium"
     "L+ /usr/bin/readlink - - - - ${pkgs.coreutils}/bin/readlink"
     "L+ /usr/bin/which - - - - ${pkgs.which}/bin/which"
+    # Declarative seeding of KDE & KOS desktop settings on any install
+    "d /home/bigl/.config 0755 bigl users -"
+    "d /home/bigl/.config/kos 0755 bigl users -"
+    "C+ /home/bigl/.config/kwinrc 0600 bigl users - ${./dotfiles/kde/kwinrc}"
+    "C+ /home/bigl/.config/kglobalshortcutsrc 0600 bigl users - ${./dotfiles/kde/kglobalshortcutsrc}"
+    "C+ /home/bigl/.config/kdeglobals 0600 bigl users - ${./dotfiles/kde/kdeglobals}"
+    "C+ /home/bigl/.config/kos/window-appearance.json 0644 bigl users - ${./dotfiles/kos/window-appearance.json}"
+    "C+ /home/bigl/.config/kos/window-buttons.json 0644 bigl users - ${./dotfiles/kos/window-buttons.json}"
+    "C+ /home/bigl/.config/kos/window-integration.json 0644 bigl users - ${./dotfiles/kos/window-integration.json}"
   ];
 
   # Allow unfree packages
@@ -190,7 +226,7 @@
     dockerCompat = false;
   };
 
-  # System Packages
+  # System Packages (all 10 tools consolidated declaratively)
   environment.systemPackages = with pkgs; [
     ungoogled-chromium
     bluez
@@ -213,9 +249,15 @@
   fonts.packages = [
     (pkgs.runCommand "sf-pro-fonts" {} ''
       mkdir -p $out/share/fonts/opentype
-      cp -r ${../fonts/SF-Pro}/* $out/share/fonts/opentype/
+      cp -r ${./fonts/SF-Pro}/* $out/share/fonts/opentype/
     '')
   ];
+
+  # Shell aliases
+  programs.bash.shellAliases = {
+    rebuild = "sudo nixos-rebuild switch --flake /home/bigl/dotfiles#nixos";
+    update-flake = "cd /home/bigl/dotfiles && nix flake update";
+  };
 
   # OpenSSH daemon
   services.openssh.enable = true;

@@ -89,15 +89,8 @@ if [ ! -d "$DOTFILES_DIR" ]; then
 fi
 cp /mnt/etc/nixos/hardware-configuration.nix "$DOTFILES_DIR/hardware-configuration.nix"
 
-# Hardware-Erkennung für dedizierte GPU
+# Einzige Konfiguration fuer alle Rechner
 FLAKE_TARGET="nixos"
-if lspci 2>/dev/null | grep -iE "vga|3d|display" | grep -iq "nvidia"; then
-    echo "-> NVIDIA GPU erkannt! Wähle Flake-Profil: workstation (mit NVIDIA & PRIME)"
-    FLAKE_TARGET="workstation"
-else
-    echo "-> Standard-Grafik (Intel/AMD/Mesa/VM) erkannt! Wähle Flake-Profil: nixos"
-    FLAKE_TARGET="nixos"
-fi
 
 echo "=========================================================="
 echo "    Starte nixos-install (--flake .#$FLAKE_TARGET)...     "

@@ -1,12 +1,12 @@
-# Universal & 100% Reproducible NixOS & KOS Flake (for ANY PC)
+# Universal & 100% Reproducible NixOS & KOS Configuration (for ANY PC)
 
-Dieses Repository enthält deine vollständige, zu **100 % reproduzierbare NixOS & NextKDE (KOS)** Desktop-Konfiguration. Sie ist so gebaut, dass sie **auf jedem beliebigen Computer** (virtuelle Maschine, Laptop, schwacher PC, Gaming-Desktop mit Intel, AMD oder NVIDIA) identisch installiert werden kann.
+Dieses Repository enthält deine vollständige, zu **100 % reproduzierbare NixOS & NextKDE (KOS)** Desktop-Konfiguration in **einer einzigen zentralen `configuration.nix`**. Sie ist so konfiguriert, dass sie **auf jedem beliebigen Computer** (virtuelle Maschine, Laptop, PC mit Intel, AMD oder NVIDIA) identisch und stabil läuft.
 
 ---
 
 ## ⚡ Universelle 1-Klick-Installation auf JEDEM PC
 
-Egal ob auf einem neuen Laptop, einem schwächeren PC oder in einer Test-VM:
+Egal ob auf einem neuen Rechner, Laptop oder in einer Test-VM:
 Starte einfach das NixOS-Live-Medium und führe diesen einzigen Befehl aus:
 
 ```bash
@@ -14,40 +14,45 @@ curl -sL https://raw.githubusercontent.com/lakape/dotfiles/master/scripts/instal
 ```
 
 **Was das Skript vollautomatisch erledigt:**
-1. Listet alle Festplatten auf (NVMe, SATA, VirtIO) und lässt dich das Ziellaufwerk auswählen.
-2. Erstellt saubere GPT-Partitionen (512MB EFI + Root) und formatiert sie.
-3. Mountet alles nach `/mnt` und scannt die Hardware des PCs (`nixos-generate-config`).
+1. Erkennt automatisch die Festplatte (NVMe, SATA, VirtIO) und partitioniert sie (512MB EFI + Root).
+2. Formatiert die Partitionen und mountet sie nach `/mnt`.
+3. Erfasst die Hardware des aktuellen PCs (`nixos-generate-config`).
 4. Klont dieses Repository nach `/mnt/etc/dotfiles`.
-5. **Automatische Hardware-Erkennung:** Erkennt automatisch, ob eine dedizierte NVIDIA-GPU verbaut ist (wählt dann `#workstation` mit PRIME-Offload) oder Standard-Grafik wie Intel/AMD/VM vorliegt (wählt `#nixos`).
-6. Führt `nixos-install` komplett durch.
+5. Übernimmt die generierte `hardware-configuration.nix`.
+6. Führt `nixos-install --flake /mnt/etc/dotfiles#nixos` aus.
 
 Nach einem anschließenden `reboot` startet der PC direkt in deinen fertigen KOS-Desktop!
 
 ---
 
-## 📁 Repository-Struktur
+## 📁 Repository-Struktur (Flach und Eindeutig)
 
 ```
 ~/dotfiles/
-├── flake.nix                          # Haupteinstiegspunkt (Profile: default/nixos & workstation)
-├── hardware-configuration.nix         # Hardware-Scan der Zielmaschine (Platten, CPU, Boot)
-├── modules/
-│   ├── common.nix                     # Universelles Basissystem (KDE Plasma 6, KOS, Tools, PipeWire)
-│   ├── home.nix                       # Home-Manager (KOS-Tokens, Tastaturkürzel, Shell-Aliase)
-│   └── nvidia.nix                     # Optionales Modul für Rechner mit dedizierter NVIDIA-GPU
+├── flake.nix                  # Haupteinstiegspunkt (Flake-Target: nixos / default)
+├── configuration.nix          # DIE einzige Konfiguration (KDE Plasma 6, KOS, Tools, Schriften, Shortcuts)
+├── hardware-configuration.nix # Hardware-Scan der Zielmaschine (vom Installer generiert)
 ├── dotfiles/
-│   ├── kde/                           # kwinrc, kglobalshortcutsrc, kdeglobals
-│   └── kos/                           # window-appearance.json, window-buttons.json etc.
-├── fonts/                             # Apple SF-Pro Schriftarten
+│   ├── kde/                   # kwinrc, kglobalshortcutsrc, kdeglobals
+│   └── kos/                   # window-appearance.json, window-buttons.json etc.
+├── fonts/                     # Apple SF-Pro Schriftarten
 └── scripts/
-    ├── install-on-new-pc.sh           # Universeller 1-Klick-Installer für jeden Rechner
-    ├── sync-desktop-to-repo.sh        # Holt aktuelle GUI-Änderungen ins Git-Repo
-    └── apply-desktop-from-repo.sh     # Wendet Repo-Einstellungen auf ~/.config an
+    ├── install-on-new-pc.sh   # Universeller 1-Klick-Installer für JEDEN Rechner
+    ├── sync-desktop-to-repo.sh    # Holt GUI-Änderungen ins Git-Repo
+    └── apply-desktop-from-repo.sh # Wendet Repo-Einstellungen auf ~/.config an
 ```
 
 ---
 
-## 🔄 Änderungen anpassen & synchronisieren
+## 🖥️ Tolerante Grafiktreiber
+
+In `configuration.nix` ist `videoDrivers = [ "nvidia" "modesetting" ];` gesetzt:
+- Hat der Rechner eine **NVIDIA GPU**, lädt er die proprietären NVIDIA-Treiber mit PRIME-Offload.
+- Hat der Rechner **keine NVIDIA GPU** (z. B. Intel/AMD-Laptop oder VM), fällt er automatisch und absturzfrei auf den Standard-Mesa/Modesetting-Treiber zurück.
+
+---
+
+## 🔄 Änderungen synchronisieren
 
 Wenn du Shortcuts oder KOS-Einstellungen im GUI änderst:
 1. `./scripts/sync-desktop-to-repo.sh` ausführen
