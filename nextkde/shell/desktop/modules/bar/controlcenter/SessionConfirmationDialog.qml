@@ -39,9 +39,9 @@ KosFloatPanel {
                 topMargin: 20
                 horizontalCenter: parent.horizontalCenter
             }
-            color: Qt.rgba(1, 1, 1, 0.12)
+            color: sessionConfirm.contentControlFill
             border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.20)
+            border.color: sessionConfirm.contentControlBorder
 
             BundledIcon {
                 anchors.centerIn: parent
@@ -50,7 +50,7 @@ KosFloatPanel {
                 name: BundledIcons.roleName(sessionConfirm.actionLabel === "poweroff"
                     ? "powerOff"
                     : (sessionConfirm.actionLabel === "reboot" ? "reboot" : "logout"))
-                color: "#ffffff"
+                color: sessionConfirm.contentForegroundColor
                 outlined: false
             }
         }
@@ -66,7 +66,7 @@ KosFloatPanel {
             renderType: Text.NativeRendering
             text: sessionConfirm.actionLabel === "poweroff" ? I18n.tr("Power off now?")
                 : (sessionConfirm.actionLabel === "reboot" ? I18n.tr("Restart now?") : I18n.tr("Log out now?"))
-            color: "#ffffff"
+            color: sessionConfirm.contentForegroundColor
             font {
                 pixelSize: 16
                 weight: Font.DemiBold
@@ -84,7 +84,7 @@ KosFloatPanel {
             horizontalAlignment: Text.AlignHCenter
             renderType: Text.NativeRendering
             text: I18n.tr("Unsaved work may be lost")
-            color: Qt.rgba(1, 1, 1, 0.72)
+            color: sessionConfirm.contentSecondaryColor
             font {
                 pixelSize: 12
                 family: "SF Pro Display, Inter, Noto Sans, sans-serif"
@@ -104,16 +104,16 @@ KosFloatPanel {
                 height: 32
                 radius: height / 2
                 color: cancelMouse.containsMouse
-                    ? Qt.rgba(1, 1, 1, 0.22)
-                    : Qt.rgba(1, 1, 1, 0.12)
+                    ? (sessionConfirm.finalGlassIsDark ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(0, 0, 0, 0.12))
+                    : sessionConfirm.contentControlFill
                 border.width: 1
-                border.color: Qt.rgba(1, 1, 1, 0.18)
+                border.color: sessionConfirm.contentControlBorder
 
                 Text {
                     anchors.centerIn: parent
                     renderType: Text.NativeRendering
                     text: I18n.tr("Cancel")
-                    color: "#ffffff"
+                    color: sessionConfirm.contentForegroundColor
                     font {
                         pixelSize: 13
                         weight: Font.Medium
@@ -135,17 +135,25 @@ KosFloatPanel {
                 height: 32
                 radius: height / 2
                 color: executeConfirmMouse.containsMouse
-                    ? (sessionConfirm.actionLabel === "logout" ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(1.0, 0.23, 0.19, 0.35))
-                    : (sessionConfirm.actionLabel === "logout" ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1.0, 0.23, 0.19, 0.22))
+                    ? (sessionConfirm.actionLabel === "logout"
+                        ? (sessionConfirm.finalGlassIsDark ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(0, 0, 0, 0.12))
+                        : (sessionConfirm.finalGlassIsDark ? Qt.rgba(1.0, 0.23, 0.19, 0.35) : Qt.rgba(1.0, 0.23, 0.19, 0.25)))
+                    : (sessionConfirm.actionLabel === "logout"
+                        ? sessionConfirm.contentControlFill
+                        : (sessionConfirm.finalGlassIsDark ? Qt.rgba(1.0, 0.23, 0.19, 0.22) : Qt.rgba(1.0, 0.23, 0.19, 0.12)))
                 border.width: 1
-                border.color: sessionConfirm.actionLabel === "logout" ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(1.0, 0.23, 0.19, 0.45)
+                border.color: sessionConfirm.actionLabel === "logout"
+                    ? sessionConfirm.contentControlBorder
+                    : (sessionConfirm.finalGlassIsDark ? Qt.rgba(1.0, 0.23, 0.19, 0.45) : Qt.rgba(1.0, 0.23, 0.19, 0.30))
 
                 Text {
                     anchors.centerIn: parent
                     renderType: Text.NativeRendering
                     text: sessionConfirm.actionLabel === "poweroff" ? I18n.tr("Power Off")
                         : (sessionConfirm.actionLabel === "reboot" ? I18n.tr("Restart") : I18n.tr("Log Out"))
-                    color: sessionConfirm.actionLabel === "logout" ? "#ffffff" : "#ff453a"
+                    color: sessionConfirm.actionLabel === "logout"
+                        ? sessionConfirm.contentForegroundColor
+                        : (sessionConfirm.finalGlassIsDark ? "#ff453a" : "#d70015")
                     font {
                         pixelSize: 13
                         weight: Font.DemiBold

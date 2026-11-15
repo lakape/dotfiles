@@ -76,7 +76,9 @@ Scope {
     property bool blurOverrideEnabled: false
     property real blurStrength: AppearanceConfigService.effectiveDockBlur
     property bool maskContent: false
-    readonly property bool finalGlassIsDark: materialTone === "light" ? false : true
+    readonly property bool finalGlassIsDark: materialTone === "light"
+        ? false
+        : (materialTone === "dark" ? true : ThemeService.isDark)
     property color baseColor: AppearanceTokens.surface.pick(AppearanceTokens.colors.surfaceContainer,
         (finalGlassIsDark ? ThemeService.barGlassBg : Qt.rgba(0.95, 0.95, 0.97, 0.35)))
     property real surfaceOpacity: AppearanceTokens.surface.pick(AppearanceTokens.glass.materialOpacity, 1.0)
@@ -249,9 +251,8 @@ Scope {
                 id: cardUnderlay
                 anchors.fill: parent
                 radius: cardPanel.radius
-                color: ThemeService.isLightBackdrop
-                    ? Qt.rgba(0.12, 0.12, 0.16, 0.72)
-                    : Qt.rgba(0.12, 0.12, 0.16, 0.68)
+                visible: root.materialTone === "dark" || (root.materialTone === "auto" && ThemeService.isLightBackdrop)
+                color: Qt.rgba(0.12, 0.12, 0.16, 0.68)
                 border.width: 1
                 border.color: Qt.rgba(1.0, 1.0, 1.0, 0.16)
                 z: -1
