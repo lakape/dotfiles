@@ -13,15 +13,35 @@ echo "=========================================================="
 TARGET_DISK="${1:-}"
 
 if [ -z "$TARGET_DISK" ]; then
+    mapfile -t DISKS < <(lsblk -d -n -o NAME,TYPE | awk '$2=="disk" && $1 !~ /^(fd|loop|sr|ram|zram)/ {print $1}')
+
+    if [ ${#DISKS[@]} -eq 0 ]; then
+        echo "Error: No suitable install disk found on this system."
+        exit 1
+    fi
+
     echo ""
     echo "Detected block devices on this system:"
-    lsblk -d -n -o NAME,SIZE,MODEL,TYPE | awk '$4=="disk"{print "  /dev/" $1 " (" $2 ", " $3 ")"}'
+    for d in "${DISKS[@]}"; do
+        size=$(lsblk -d -n -o SIZE "/dev/$d" 2>/dev/null || echo "")
+        model=$(lsblk -d -n -o MODEL "/dev/$d" 2>/dev/null || echo "")
+        echo "  /dev/$d (${size}${model:+, $model})"
+    done
     echo ""
 
-    DEFAULT_DISK=$(lsblk -d -n -o NAME,TYPE | awk '$2=="disk"{print "/dev/"$1; exit}')
+    # Choose smart default: prefer nvme, then vd, then first disk
+    DEFAULT_DISK="/dev/${DISKS[0]}"
+    for d in "${DISKS[@]}"; do
+        if [[ "$d" =~ ^nvme ]]; then
+            DEFAULT_DISK="/dev/$d"
+            break
+        elif [[ "$d" =~ ^vd ]]; then
+            DEFAULT_DISK="/dev/$d"
+        fi
+    done
 
-    if [ -t 0 ]; then
-        read -r -p "Target disk [Default: ${DEFAULT_DISK}]: " USER_INPUT
+    if [ -e /dev/tty ]; then
+        read -r -p "Target disk [Default: ${DEFAULT_DISK}]: " USER_INPUT < /dev/tty || USER_INPUT=""
         TARGET_DISK="${USER_INPUT:-$DEFAULT_DISK}"
     else
         TARGET_DISK="$DEFAULT_DISK"
@@ -35,10 +55,10 @@ fi
 
 echo "Selected target disk: $TARGET_DISK"
 
-if [ -t 0 ]; then
+if [ -e /dev/tty ]; then
     echo ""
     echo "WARNING: All existing data on '$TARGET_DISK' will be permanently erased!"
-    read -r -p "Are you sure you want to proceed? (y/N): " CONFIRM
+    read -r -p "Are you sure you want to proceed? (y/N): " CONFIRM < /dev/tty || CONFIRM="n"
     if [[ "$CONFIRM" != "y" && "$CONFIRM" != "yes" && "$CONFIRM" != "ja" ]]; then
         echo "Installation aborted."
         exit 0
@@ -102,13 +122,21 @@ echo ""
 echo "=========================================================="
 echo "    Set password for user 'root':                         "
 echo "=========================================================="
-nixos-enter --root /mnt -c 'passwd root'
+if [ -e /dev/tty ]; then
+    nixos-enter --root /mnt -c 'passwd root' < /dev/tty
+else
+    nixos-enter --root /mnt -c 'passwd root'
+fi
 
 echo ""
 echo "=========================================================="
 echo "    Set password for user 'bigl':                         "
 echo "=========================================================="
-nixos-enter --root /mnt -c 'passwd bigl'
+if [ -e /dev/tty ]; then
+    nixos-enter --root /mnt -c 'passwd bigl' < /dev/tty
+else
+    nixos-enter --root /mnt -c 'passwd bigl'
+fi
 
 echo "=========================================================="
 echo "    Installation completed successfully.                  "
