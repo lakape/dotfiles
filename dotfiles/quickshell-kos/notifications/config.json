@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "key": "name:Crash Reporting System",
+      "desktopEntry": "",
+      "appName": "Crash Reporting System",
+      "appIcon": "tools-report-bug"
+    },
+    {
+      "key": "desktop:org.kde.kded6",
+      "desktopEntry": "org.kde.kded6",
+      "appName": "System Notifications",
+      "appIcon": "drive-removable-media-usb"
+    },
+    {
+      "key": "desktop:org.kde.org_kde_powerdevil",
+      "desktopEntry": "org.kde.org_kde_powerdevil",
+      "appName": "Power Management",
+      "appIcon": "audio-headset-battery"
+    },
+    {
+      "key": "name:DeskCenter",
+      "desktopEntry": "",
+      "appName": "DeskCenter",
+      "appIcon": ""
+    },
+    {
+      "key": "desktop:org.kde.spectacle",
+      "desktopEntry": "org.kde.spectacle",
+      "appName": "Spectacle",
+      "appIcon": "spectacle"
+    }
+  ],
+  "blockedKeys": [],
+  "doNotDisturbEnabled": false,
+  "bannersEnabled": true,
+  "historyEnabled": true,
+  "showPreview": true
+}

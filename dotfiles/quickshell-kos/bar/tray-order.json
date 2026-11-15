@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "order": [
+    "tray:Teams for Linux_status_icon_1",
+    "tray:UniFi Endpoint#2",
+    "tray:UniFi Endpoint",
+    "tray:Antigravity_status_icon_1",
+    "cell:cpu",
+    "cell:network",
+    "cell:battery",
+    "cell:notifications",
+    "cell:controlcenter"
+  ],
+  "collectedKeys": []
+}

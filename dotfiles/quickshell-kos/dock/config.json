@@ -1,0 +1,43 @@
+{
+  "version": 12,
+  "baseHeight": 60,
+  "theme": "system",
+  "position": "bottom",
+  "dockStyle": "floating",
+  "contentStyle": "compact",
+  "hoverScale": null,
+  "barHeight": 35,
+  "iconOverrides": {},
+  "dockItems": [
+    {
+      "type": "app",
+      "appId": "kos-settings.desktop"
+    },
+    {
+      "type": "app",
+      "appId": "org.kde.dolphin.desktop"
+    }
+  ],
+  "pinnedAppIds": [
+    "kos-settings.desktop",
+    "org.kde.dolphin.desktop"
+  ],
+  "proportions": {
+    "vpad": 0.2,
+    "hpad": 0.4,
+    "spacing": 0.09,
+    "divmargin": 0.2
+  },
+  "iconMode": "color",
+  "iconOpacity": 0.5,
+  "iconTintColor": "#a855f7",
+  "visibilityMode": "always",
+  "windowGrouping": "grouped",
+  "showLauncher": true,
+  "showTrash": true,
+  "showNotificationBadges": true,
+  "showRevealIndicator": true,
+  "infoCardMode": "carousel",
+  "infoCardAutoRotate": true,
+  "infoCardOrder": []
+}

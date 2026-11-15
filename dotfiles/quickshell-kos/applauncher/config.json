@@ -1,0 +1,45 @@
+{
+  "version": 4,
+  "displayMode": "center",
+  "layoutProfiles": {
+    "bottom": {
+      "iconSize": "medium",
+      "density": "compact",
+      "fontWeight": "normal"
+    },
+    "bottomWide": {
+      "iconSize": "medium",
+      "density": "compact",
+      "fontWeight": "normal"
+    },
+    "center": {
+      "iconSize": "medium",
+      "density": "balanced",
+      "fontWeight": "normal"
+    },
+    "fullscreen": {
+      "iconSize": "large",
+      "density": "balanced",
+      "fontWeight": "medium"
+    }
+  },
+  "rootItems": [],
+  "hiddenAppIds": [
+    "kos-weather",
+    "org.kde.khelpcenter",
+    "org.kde.kinfocenter",
+    "kos-settings",
+    "cups",
+    "cups.desktop",
+    "print-manager",
+    "print-manager.desktop",
+    "org.kde.printmanager",
+    "org.kde.printmanager.desktop",
+    "Manage Printing"
+  ],
+  "appOverrides": {
+    "org.kde.plasma.emojier": {
+      "name": "Verity"
+    }
+  }
+}

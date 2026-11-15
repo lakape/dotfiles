@@ -7,6 +7,7 @@ echo "=== Syncing current active Desktop & KOS settings into repository ==="
 mkdir -p "${REPO_DIR}/dotfiles/kde" \
          "${REPO_DIR}/dotfiles/kos" \
          "${REPO_DIR}/dotfiles/applications" \
+         "${REPO_DIR}/dotfiles/quickshell-kos" \
          "${REPO_DIR}/dotfiles/kos-share/gallery" \
          "${REPO_DIR}/dotfiles/wallpapers"
 
@@ -33,7 +34,15 @@ fi
 # 4. Hidden applications overrides
 if [ -d "$HOME/.local/share/applications" ]; then
     cp -r "$HOME/.local/share/applications"/* "${REPO_DIR}/dotfiles/applications/" 2>/dev/null || true
-    echo "✓ Copied ~/.local/share/applications/*"
+    # Don't bundle uninstalled third-party app shortcuts into fresh system dotfiles
+    rm -f "${REPO_DIR}/dotfiles/applications/antigravity.desktop"
+    echo "✓ Copied ~/.local/share/applications/* (excluding custom app binaries)"
+fi
+
+# 5. KOS shell & dock state (Quickshell state)
+if [ -d "$HOME/.local/state/quickshell/kos" ]; then
+    cp -r "$HOME/.local/state/quickshell/kos"/* "${REPO_DIR}/dotfiles/quickshell-kos/" 2>/dev/null || true
+    echo "✓ Copied ~/.local/state/quickshell/kos/*"
 fi
 
 # 5. Wallpapers & gallery

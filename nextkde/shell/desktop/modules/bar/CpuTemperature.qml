@@ -13,11 +13,11 @@ Item {
 
     property bool dockHosted: false
 
-    property bool available: MetricsService.currentMilliC >= 0
-        && MetricsService.maximum5MinuteMilliC >= 0
-    readonly property int currentC: Math.round(MetricsService.currentMilliC / 1000)
-    readonly property int maximum5MinuteC: Math.round(
-        MetricsService.maximum5MinuteMilliC / 1000)
+    property bool available: (MetricsService.currentMilliC >= 0
+        && MetricsService.maximum5MinuteMilliC >= 0) || MetricsService.ready
+    readonly property int currentC: MetricsService.currentMilliC >= 0 ? Math.round(MetricsService.currentMilliC / 1000) : 0
+    readonly property int maximum5MinuteC: MetricsService.maximum5MinuteMilliC >= 0 ? Math.round(
+        MetricsService.maximum5MinuteMilliC / 1000) : 0
 
     implicitWidth: available ? content.implicitWidth : 0
     implicitHeight: 20

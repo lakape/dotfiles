@@ -19,4 +19,10 @@ if [ -d "${REPO_DIR}/dotfiles/kos" ]; then
     echo "✓ Restored ~/.config/kos/*.json"
 fi
 
+if [ -d "${REPO_DIR}/dotfiles/quickshell-kos" ]; then
+    mkdir -p "$HOME/.local/state/quickshell/kos"
+    cp -r "${REPO_DIR}/dotfiles/quickshell-kos"/* "$HOME/.local/state/quickshell/kos/" 2>/dev/null || true
+    echo "✓ Restored ~/.local/state/quickshell/kos/*"
+fi
+
 echo "Done! Restart kwin_wayland or log out/in to apply full changes."

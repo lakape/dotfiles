@@ -196,6 +196,9 @@
     "C+ /home/bigl/.local/share/applications 0755 bigl users - ${./dotfiles/applications}"
     "C+ /home/bigl/.local/share/kos/gallery 0755 bigl users - ${./dotfiles/kos-share/gallery}"
     "C+ /home/bigl/.local/share/wallpapers 0755 bigl users - ${./dotfiles/wallpapers}"
+    "d /home/bigl/.local/state 0755 bigl users -"
+    "d /home/bigl/.local/state/quickshell 0755 bigl users -"
+    "C+ /home/bigl/.local/state/quickshell/kos 0755 bigl users - ${./dotfiles/quickshell-kos}"
   ];
 
   # Allow unfree packages
