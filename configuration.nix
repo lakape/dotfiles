@@ -24,7 +24,11 @@ let
 
       cat << 'WRAPPER' > $out/bin/antigravity
 #!/bin/sh
-exec "$out/opt/antigravity/antigravity" --ozone-platform-hint=auto "$@"
+if [ -z "$DISPLAY" ] && [ -n "$WAYLAND_DISPLAY" ]; then
+  exec "$out/opt/antigravity/antigravity" --ozone-platform=wayland "$@"
+else
+  exec "$out/opt/antigravity/antigravity" --ozone-platform-hint=auto "$@"
+fi
 WRAPPER
       substituteInPlace $out/bin/antigravity --replace-fail '$out' "$out"
       chmod +x $out/bin/antigravity
