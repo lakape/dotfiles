@@ -1,6 +1,27 @@
-# Universal & 100% Reproducible NixOS Flake (for ANY PC)
+# Universal & 100% Reproducible NixOS & KOS Flake (for ANY PC)
 
-Dieses Repository enthält deine vollständige, zu **100 % reproduzierbare NixOS & NextKDE (KOS)** Desktop-Konfiguration. Sie ist so aufgebaut, dass sie **auf jedem beliebigen Computer** (virtuelle Maschine, Laptop, schwacher PC, Desktop mit Intel/AMD oder High-End Workstation mit NVIDIA) identisch installiert werden kann.
+Dieses Repository enthält deine vollständige, zu **100 % reproduzierbare NixOS & NextKDE (KOS)** Desktop-Konfiguration. Sie ist so gebaut, dass sie **auf jedem beliebigen Computer** (virtuelle Maschine, Laptop, schwacher PC, Gaming-Desktop mit Intel, AMD oder NVIDIA) identisch installiert werden kann.
+
+---
+
+## ⚡ Universelle 1-Klick-Installation auf JEDEM PC
+
+Egal ob auf einem neuen Laptop, einem schwächeren PC oder in einer Test-VM:
+Starte einfach das NixOS-Live-Medium und führe diesen einzigen Befehl aus:
+
+```bash
+curl -sL https://raw.githubusercontent.com/lakape/dotfiles/master/scripts/install-on-new-pc.sh | bash
+```
+
+**Was das Skript vollautomatisch erledigt:**
+1. Listet alle Festplatten auf (NVMe, SATA, VirtIO) und lässt dich das Ziellaufwerk auswählen.
+2. Erstellt saubere GPT-Partitionen (512MB EFI + Root) und formatiert sie.
+3. Mountet alles nach `/mnt` und scannt die Hardware des PCs (`nixos-generate-config`).
+4. Klont dieses Repository nach `/mnt/etc/dotfiles`.
+5. **Automatische Hardware-Erkennung:** Erkennt automatisch, ob eine dedizierte NVIDIA-GPU verbaut ist (wählt dann `#workstation` mit PRIME-Offload) oder Standard-Grafik wie Intel/AMD/VM vorliegt (wählt `#nixos`).
+6. Führt `nixos-install` komplett durch.
+
+Nach einem anschließenden `reboot` startet der PC direkt in deinen fertigen KOS-Desktop!
 
 ---
 
@@ -13,51 +34,16 @@ Dieses Repository enthält deine vollständige, zu **100 % reproduzierbare NixOS
 ├── modules/
 │   ├── common.nix                     # Universelles Basissystem (KDE Plasma 6, KOS, Tools, PipeWire)
 │   ├── home.nix                       # Home-Manager (KOS-Tokens, Tastaturkürzel, Shell-Aliase)
-│   └── nvidia.nix                     # Optionales Profil für Rechner mit dedizierter NVIDIA-GPU
+│   └── nvidia.nix                     # Optionales Modul für Rechner mit dedizierter NVIDIA-GPU
 ├── dotfiles/
 │   ├── kde/                           # kwinrc, kglobalshortcutsrc, kdeglobals
 │   └── kos/                           # window-appearance.json, window-buttons.json etc.
 ├── fonts/                             # Apple SF-Pro Schriftarten
 └── scripts/
+    ├── install-on-new-pc.sh           # Universeller 1-Klick-Installer für jeden Rechner
     ├── sync-desktop-to-repo.sh        # Holt aktuelle GUI-Änderungen ins Git-Repo
     └── apply-desktop-from-repo.sh     # Wendet Repo-Einstellungen auf ~/.config an
 ```
-
----
-
-## 💻 Installation auf EINEM BELIEBIGEN PC (oder VM)
-
-Egal ob auf einem neuen Laptop, einem schwächeren PC oder in einer Test-VM:
-
-### 1. NixOS Live-Medium booten und Partitionen mounten
-```bash
-# Beispiel GPT (EFI 512M nach /mnt/boot, Root-Partition nach /mnt)
-mount /dev/disk/by-label/nixos /mnt
-mkdir -p /mnt/boot
-mount /dev/disk/by-label/boot /mnt/boot
-```
-
-### 2. Hardware des PCs automatisch scannen
-```bash
-nixos-generate-config --root /mnt
-```
-
-### 3. Repository klonen & Hardware-Scan übernehmen
-```bash
-git clone https://github.com/lakape/dotfiles.git /mnt/etc/dotfiles
-cp /mnt/etc/nixos/hardware-configuration.nix /mnt/etc/dotfiles/
-```
-
-### 4. Installation starten
-```bash
-# Auf jedem normalen Rechner (Intel / AMD / VM):
-nixos-install --flake /mnt/etc/dotfiles#nixos
-
-# Auf Rechnern mit dedizierter NVIDIA-GPU:
-nixos-install --flake /mnt/etc/dotfiles#workstation
-```
-
-Nach einem `reboot` startet der Rechner direkt mit deinem exakt identischen KOS-Desktop, denselben Tastaturkürzeln, Farben, Schriftarten und Programmen!
 
 ---
 
