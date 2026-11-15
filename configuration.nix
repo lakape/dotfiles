@@ -3,6 +3,38 @@
 
 { config, pkgs, lib, ... }:
 
+let
+  # Antigravity IDE (Official Google Deepmind build, 100% reproducible)
+  antigravity = pkgs.stdenv.mkDerivation rec {
+    pname = "antigravity";
+    version = "2.32.0";
+    src = pkgs.fetchurl {
+      url = "https://storage.googleapis.com/antigravity-public/antigravity-hub/2.32.0-6141816156848128/linux-x64/Antigravity.tar.gz";
+      hash = "sha256-2YoTcfK9TKfdLn7ujzLqBwVDoeDkXGl2H3ANZ0VPQnU=";
+    };
+    sourceRoot = ".";
+    dontBuild = true;
+    dontConfigure = true;
+    dontStrip = true;
+    dontPatchELF = true;
+
+    installPhase = ''
+      mkdir -p $out/opt/antigravity $out/bin $out/share/applications $out/share/icons/hicolor/512x512/apps
+      cp -r Antigravity-x64/* $out/opt/antigravity/
+
+      cat << 'WRAPPER' > $out/bin/antigravity
+#!/bin/sh
+exec "$out/opt/antigravity/antigravity" --ozone-platform-hint=auto "$@"
+WRAPPER
+      substituteInPlace $out/bin/antigravity --replace-fail '$out' "$out"
+      chmod +x $out/bin/antigravity
+
+      cp ${./dotfiles/icons/antigravity.png} $out/share/icons/hicolor/512x512/apps/antigravity.png
+      cp ${./dotfiles/icons/antigravity.png} $out/opt/antigravity/antigravity.png
+      cp ${./dotfiles/applications/antigravity.desktop} $out/share/applications/antigravity.desktop
+    '';
+  };
+in
 {
   imports = [
     ./hardware-configuration.nix
@@ -61,6 +93,15 @@
   # NextKDE / KOS Desktop Shell
   services.kos.enable = true;
   services.kos.weather.enable = false;
+
+  # Ensure CPU/RAM status cell is available even on systems/VMs without ACPI thermal sensors
+  systemd.user.services.kos-shell-init = {
+    postStart = ''
+      if [ -f "$HOME/.config/quickshell/kos/desktop/modules/bar/CpuTemperature.qml" ]; then
+        sed -i 's/MetricsService.currentMilliC >= 0 && MetricsService.maximum5MinuteMilliC >= 0/(MetricsService.currentMilliC >= 0 \&\& MetricsService.maximum5MinuteMilliC >= 0) || MetricsService.ready/' "$HOME/.config/quickshell/kos/desktop/modules/bar/CpuTemperature.qml"
+      fi
+    '';
+  };
 
   # Sound with PipeWire
   services.printing.enable = false;
@@ -199,6 +240,15 @@
     "d /home/bigl/.local/state 0755 bigl users -"
     "d /home/bigl/.local/state/quickshell 0755 bigl users -"
     "C+ /home/bigl/.local/state/quickshell/kos 0755 bigl users - ${./dotfiles/quickshell-kos}"
+    # Antigravity application paths & symlinks (100% reproducible)
+    "d /home/bigl/.local/opt 0755 bigl users -"
+    "d /home/bigl/.local/opt/antigravity 0755 bigl users -"
+    "L+ /home/bigl/.local/opt/antigravity/Antigravity-x64 - - - - ${antigravity}/opt/antigravity"
+    "L+ /home/bigl/.local/opt/antigravity/antigravity.png - - - - ${./dotfiles/icons/antigravity.png}"
+    "d /home/bigl/.local/bin 0755 bigl users -"
+    "L+ /home/bigl/.local/bin/antigravity - - - - ${antigravity}/bin/antigravity"
+    "d /home/bigl/.local/share/icons/hicolor/512x512/apps 0755 bigl users -"
+    "C+ /home/bigl/.local/share/icons/hicolor/512x512/apps/antigravity.png 0644 bigl users - ${./dotfiles/icons/antigravity.png}"
   ];
 
   # Allow unfree packages
@@ -238,8 +288,9 @@
     dockerCompat = false;
   };
 
-  # System Packages (all 10 tools consolidated declaratively)
+  # System Packages (all tools consolidated declaratively)
   environment.systemPackages = with pkgs; [
+    antigravity
     ungoogled-chromium
     bluez
     bluez-tools

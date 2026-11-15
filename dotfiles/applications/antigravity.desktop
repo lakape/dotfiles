@@ -1,0 +1,17 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Antigravity
+GenericName=Agentic IDE
+GenericName[de]=Agentische Entwicklungsumgebung
+Comment=Antigravity - Agentic Desktop Application
+Comment[de]=Antigravity - KI-gestützte Entwicklungsumgebung
+Exec=antigravity %U
+Icon=antigravity
+Terminal=false
+Categories=Development;IDE;TextEditor;
+Keywords=antigravity;ide;editor;code;ai;agent;
+Keywords[de]=antigravity;ide;editor;entwicklung;code;ki;agent;
+StartupNotify=true
+StartupWMClass=antigravity
+MimeType=text/html;x-scheme-handler/https;x-scheme-handler/http;x-scheme-handler/antigravity;
