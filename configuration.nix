@@ -98,7 +98,7 @@ in
   systemd.user.services.kos-shell-init = {
     postStart = ''
       if [ -f "$HOME/.config/quickshell/kos/desktop/modules/bar/CpuTemperature.qml" ]; then
-        sed -i 's/MetricsService.currentMilliC >= 0 && MetricsService.maximum5MinuteMilliC >= 0/(MetricsService.currentMilliC >= 0 \&\& MetricsService.maximum5MinuteMilliC >= 0) || MetricsService.ready/' "$HOME/.config/quickshell/kos/desktop/modules/bar/CpuTemperature.qml"
+        ${pkgs.gnused}/bin/sed -z -i 's/MetricsService.currentMilliC >= 0\s*&& MetricsService.maximum5MinuteMilliC >= 0/(MetricsService.currentMilliC >= 0 \&\& MetricsService.maximum5MinuteMilliC >= 0) || MetricsService.ready/g' "$HOME/.config/quickshell/kos/desktop/modules/bar/CpuTemperature.qml"
       fi
     '';
   };
@@ -289,6 +289,7 @@ in
   };
 
   # System Packages (all tools consolidated declaratively)
+  environment.localBinInPath = true;
   environment.systemPackages = with pkgs; [
     antigravity
     ungoogled-chromium
