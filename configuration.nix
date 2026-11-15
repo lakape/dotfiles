@@ -283,8 +283,14 @@ in
     })
   ];
 
-  # Nix Flakes & Command
+  # Nix settings, automatic GC and store deduplication
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.optimise.automatic = true;
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 14d";
+  };
 
   # Podman virtualization
   virtualisation.podman = {
