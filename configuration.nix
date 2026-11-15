@@ -17,10 +17,21 @@ let
     dontConfigure = true;
     dontStrip = true;
     dontPatchELF = true;
+    nativeBuildInputs = [ pkgs.python3 ];
 
     installPhase = ''
       mkdir -p $out/opt/antigravity $out/bin $out/share/applications $out/share/icons/hicolor/512x512/apps
       cp -r Antigravity-x64/* $out/opt/antigravity/
+
+      # Patch Antigravity app.asar to enable setTitleBarOverlay on Linux (removes hardcoded Windows-only check)
+      python3 -c "
+p = '$out/opt/antigravity/resources/app.asar'
+data = open(p, 'rb').read()
+old = b\"win && process.platform === 'win32'\"
+new = b\"win && process.platform != 'darwin'\"
+assert old in data, 'target pattern not found in app.asar'
+open(p, 'wb').write(data.replace(old, new, 1))
+"
 
       cat << 'WRAPPER' > $out/bin/antigravity
 #!/bin/sh
@@ -257,6 +268,10 @@ in
     "d /home/bigl/.local/state/quickshell 0755 bigl users -"
     "C+ /home/bigl/.local/state/quickshell/kos 0755 bigl users - ${./dotfiles/quickshell-kos}"
     # Antigravity application paths & symlinks (100% reproducible)
+    "d /home/bigl/.gemini 0755 bigl users -"
+    "d /home/bigl/.gemini/config 0755 bigl users -"
+    "C /home/bigl/.gemini/config/config.json 0600 bigl users - ${./dotfiles/gemini/config.json}"
+    "d /home/bigl/.local 0755 bigl users -"
     "d /home/bigl/.local/opt 0755 bigl users -"
     "d /home/bigl/.local/opt/antigravity 0755 bigl users -"
     "L+ /home/bigl/.local/opt/antigravity/Antigravity-x64 - - - - ${antigravity}/opt/antigravity"
