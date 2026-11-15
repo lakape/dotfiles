@@ -1,0 +1,9 @@
+{
+    "KPackageStructure": "Plasma/Wallpaper",
+    "KPlugin": {
+        "Id": "KOS-Backdrop-e3e369375bfb",
+        "License": "CC0-1.0",
+        "Name": "KOS Backdrop"
+    },
+    "X-KDE-PlasmaImageWallpaper-AccentColor": "#011532"
+}

@@ -181,12 +181,21 @@
     # Declarative seeding of KDE & KOS desktop settings on any install
     "d /home/bigl/.config 0755 bigl users -"
     "d /home/bigl/.config/kos 0755 bigl users -"
+    "d /home/bigl/.local 0755 bigl users -"
+    "d /home/bigl/.local/share 0755 bigl users -"
+    "d /home/bigl/.local/share/kos 0755 bigl users -"
     "C+ /home/bigl/.config/kwinrc 0600 bigl users - ${./dotfiles/kde/kwinrc}"
     "C+ /home/bigl/.config/kglobalshortcutsrc 0600 bigl users - ${./dotfiles/kde/kglobalshortcutsrc}"
     "C+ /home/bigl/.config/kdeglobals 0600 bigl users - ${./dotfiles/kde/kdeglobals}"
+    "C+ /home/bigl/.config/kactivitymanagerdrc 0600 bigl users - ${./dotfiles/kde/kactivitymanagerdrc}"
+    "C+ /home/bigl/.config/plasma-org.kde.plasma.desktop-appletsrc 0600 bigl users - ${./dotfiles/kde/plasma-org.kde.plasma.desktop-appletsrc}"
+    "C+ /home/bigl/.config/plasmashellrc 0600 bigl users - ${./dotfiles/kde/plasmashellrc}"
     "C+ /home/bigl/.config/kos/window-appearance.json 0644 bigl users - ${./dotfiles/kos/window-appearance.json}"
     "C+ /home/bigl/.config/kos/window-buttons.json 0644 bigl users - ${./dotfiles/kos/window-buttons.json}"
     "C+ /home/bigl/.config/kos/window-integration.json 0644 bigl users - ${./dotfiles/kos/window-integration.json}"
+    "C+ /home/bigl/.local/share/applications 0755 bigl users - ${./dotfiles/applications}"
+    "C+ /home/bigl/.local/share/kos/gallery 0755 bigl users - ${./dotfiles/kos-share/gallery}"
+    "C+ /home/bigl/.local/share/wallpapers 0755 bigl users - ${./dotfiles/wallpapers}"
   ];
 
   # Allow unfree packages

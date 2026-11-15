@@ -1,0 +1,5 @@
+[Plugin-org.kde.ActivityManager.Resources.Scoring]
+what-to-remember=0
+
+[activities]
+ba6725b0-9be1-4edb-beda-d929c6ead10d=Default
