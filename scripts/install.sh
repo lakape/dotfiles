@@ -68,7 +68,16 @@ fi
 echo ""
 echo "[1/6] Unmounting existing partitions..."
 umount -R /mnt 2>/dev/null || true
-swapoff -a 2>/dev/null || true
+swapoff "${TARGET_DISK}"* 2>/dev/null || true
+
+# Ensure ZRAM swap is active so compiling never runs out of RAM
+if [ "$(free -m | awk '/Swap:/ {print $2}')" -lt 4000 ]; then
+    echo "Configuring 12G ZRAM swap to prevent Out-Of-Memory during build..."
+    modprobe zram 2>/dev/null || true
+    zramctl --find --size 12G 2>/dev/null || true
+    mkswap /dev/zram0 2>/dev/null || true
+    swapon -p 100 /dev/zram0 2>/dev/null || true
+fi
 
 echo "[2/6] Partitioning '$TARGET_DISK' (GPT: 512MiB EFI, rest Btrfs root)..."
 parted -s "$TARGET_DISK" mklabel gpt
@@ -107,35 +116,37 @@ nixos-generate-config --root /mnt
 echo "[6/6] Cloning configuration repository..."
 DOTFILES_DIR="/mnt/etc/dotfiles"
 if [ ! -d "$DOTFILES_DIR" ]; then
-    git clone https://github.com/lakape/dotfiles.git "$DOTFILES_DIR"
+    if [ -d "/home/nixos/dotfiles" ]; then
+        echo "Copying dotfiles from local system..."
+        cp -r /home/nixos/dotfiles "$DOTFILES_DIR"
+    else
+        git clone https://github.com/lakape/dotfiles.git "$DOTFILES_DIR"
+    fi
 fi
 cp /mnt/etc/nixos/hardware-configuration.nix "$DOTFILES_DIR/hardware-configuration.nix"
 
 FLAKE_TARGET="nixos"
+git -C "$DOTFILES_DIR" config --global --add safe.directory "*" 2>/dev/null || true
 
 echo "=========================================================="
 echo "    Running nixos-install (--flake .#$FLAKE_TARGET)...   "
 echo "=========================================================="
-nixos-install --no-root-passwd --flake "$DOTFILES_DIR#$FLAKE_TARGET"
+nixos-install --no-root-passwd --flake "$DOTFILES_DIR#$FLAKE_TARGET" --max-jobs auto --cores 4
 
 echo ""
 echo "=========================================================="
-echo "    Set password for user 'root':                         "
+echo "    Setting passwords for users 'root' and 'bigl'...      "
 echo "=========================================================="
-if [ -e /dev/tty ]; then
-    nixos-enter --root /mnt -c 'passwd root' < /dev/tty
+DEFAULT_PASSWORD="${USER_PASSWORD:-975159}"
+if [ -t 0 ] && [ -e /dev/tty ] && [ "${CI:-}" != "1" ] && [ -z "${AUTOMATED:-}" ]; then
+    echo "Setting root password:"
+    nixos-enter --root /mnt -c 'passwd root' < /dev/tty || echo "root:$DEFAULT_PASSWORD" | nixos-enter --root /mnt -c 'chpasswd'
+    echo "Setting bigl password:"
+    nixos-enter --root /mnt -c 'passwd bigl' < /dev/tty || echo "bigl:$DEFAULT_PASSWORD" | nixos-enter --root /mnt -c 'chpasswd'
 else
-    nixos-enter --root /mnt -c 'passwd root'
-fi
-
-echo ""
-echo "=========================================================="
-echo "    Set password for user 'bigl':                         "
-echo "=========================================================="
-if [ -e /dev/tty ]; then
-    nixos-enter --root /mnt -c 'passwd bigl' < /dev/tty
-else
-    nixos-enter --root /mnt -c 'passwd bigl'
+    echo "Setting root and bigl passwords non-interactively..."
+    echo "root:$DEFAULT_PASSWORD" | nixos-enter --root /mnt -c 'chpasswd'
+    echo "bigl:$DEFAULT_PASSWORD" | nixos-enter --root /mnt -c 'chpasswd'
 fi
 
 echo ""

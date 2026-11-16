@@ -78,6 +78,9 @@ in
   networking.hostName = "nixos";
   networking.networkmanager.enable = true;
 
+  # ZRAM swap for memory efficiency and stability
+  zramSwap.enable = true;
+
   # Time & Locales
   time.timeZone = "Europe/Vienna";
   i18n.defaultLocale = "en_US.UTF-8";
