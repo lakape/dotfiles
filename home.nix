@@ -28,8 +28,14 @@
   # Bash shell integration & aliases
   programs.bash = {
     enable = true;
+    bashrcExtra = ''
+      # Ensure NixOS setuid wrappers (like sudo) always take precedence over /run/current-system/sw/bin
+      if [[ ":$PATH:" != *":/run/wrappers/bin:"* ]]; then
+        export PATH="/run/wrappers/bin:$PATH"
+      fi
+    '';
     shellAliases = {
-      rebuild = "sudo nixos-rebuild switch --flake /home/bigl/dotfiles#nixos";
+      rebuild = "/run/wrappers/bin/sudo nixos-rebuild switch --flake /home/bigl/dotfiles#nixos";
       update-flake = "cd /home/bigl/dotfiles && nix flake update";
     };
   };

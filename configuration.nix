@@ -329,7 +329,7 @@ in
 
   # Shell aliases
   programs.bash.shellAliases = {
-    rebuild = "sudo nixos-rebuild switch --flake /home/bigl/dotfiles#nixos";
+    rebuild = "/run/wrappers/bin/sudo nixos-rebuild switch --flake /home/bigl/dotfiles#nixos";
     update-flake = "cd /home/bigl/dotfiles && nix flake update";
   };
 
