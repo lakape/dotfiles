@@ -57,7 +57,7 @@ WRAPPER
     hash = "sha256-pcE3pXCSDHO5pdD01HeJQK/UWl1JUxDIiQNeaV0WWtk=";
   };
   ublock-manifest = pkgs.writeText "fkgkibajhfbepljeaefdnfnegdcjomkh.json" (builtins.toJSON {
-    external_crx = "/home/bigl/.local/share/ungoogled-chromium/extensions/ublock.crx";
+    external_crx = "${ublock-crx}";
     external_version = ublock-version;
   });
 in
@@ -239,7 +239,7 @@ in
     });
   };
 
-  # Browser symlinks & declarative desktop seeding for 100% reproducibility
+  # Browser symlinks & declarative system-wide extension seeding
   systemd.tmpfiles.rules = [
     "L+ /opt/google/chrome/chrome - - - - ${pkgs.ungoogled-chromium}/bin/chromium"
     "L+ /usr/bin/google-chrome - - - - ${pkgs.ungoogled-chromium}/bin/chromium"
@@ -249,47 +249,6 @@ in
     "L+ /usr/bin/ungoogled-chromium - - - - ${pkgs.ungoogled-chromium}/bin/chromium"
     "L+ /usr/bin/readlink - - - - ${pkgs.coreutils}/bin/readlink"
     "L+ /usr/bin/which - - - - ${pkgs.which}/bin/which"
-    # Declarative seeding of KDE & KOS desktop settings on any install
-    "d /home/bigl/.config 0755 bigl users -"
-    "d /home/bigl/.config/kos 0755 bigl users -"
-    "d /home/bigl/.local 0755 bigl users -"
-    "d /home/bigl/.local/share 0755 bigl users -"
-    "d /home/bigl/.local/share/kos 0755 bigl users -"
-    "C+ /home/bigl/.config/kwinrc 0600 bigl users - ${./dotfiles/kde/kwinrc}"
-    "C+ /home/bigl/.config/kglobalshortcutsrc 0600 bigl users - ${./dotfiles/kde/kglobalshortcutsrc}"
-    "C+ /home/bigl/.config/kdeglobals 0600 bigl users - ${./dotfiles/kde/kdeglobals}"
-    "C+ /home/bigl/.config/kactivitymanagerdrc 0600 bigl users - ${./dotfiles/kde/kactivitymanagerdrc}"
-    "C+ /home/bigl/.config/plasma-org.kde.plasma.desktop-appletsrc 0600 bigl users - ${./dotfiles/kde/plasma-org.kde.plasma.desktop-appletsrc}"
-    "C+ /home/bigl/.config/plasmashellrc 0600 bigl users - ${./dotfiles/kde/plasmashellrc}"
-    "C+ /home/bigl/.config/kos/window-appearance.json 0644 bigl users - ${./dotfiles/kos/window-appearance.json}"
-    "C+ /home/bigl/.config/kos/window-buttons.json 0644 bigl users - ${./dotfiles/kos/window-buttons.json}"
-    "C+ /home/bigl/.config/kos/window-integration.json 0644 bigl users - ${./dotfiles/kos/window-integration.json}"
-    "C+ /home/bigl/.local/share/applications 0755 bigl users - ${./dotfiles/applications}"
-    "C+ /home/bigl/.local/share/kos/gallery 0755 bigl users - ${./dotfiles/kos-share/gallery}"
-    "C+ /home/bigl/.local/share/wallpapers 0755 bigl users - ${./dotfiles/wallpapers}"
-    "d /home/bigl/.local/state 0755 bigl users -"
-    "d /home/bigl/.local/state/quickshell 0755 bigl users -"
-    "C+ /home/bigl/.local/state/quickshell/kos 0755 bigl users - ${./dotfiles/quickshell-kos}"
-    # Antigravity application paths & symlinks (100% reproducible)
-    "d /home/bigl/.gemini 0755 bigl users -"
-    "d /home/bigl/.gemini/config 0755 bigl users -"
-    "C /home/bigl/.gemini/config/config.json 0600 bigl users - ${./dotfiles/gemini/config.json}"
-    "d /home/bigl/.local 0755 bigl users -"
-    "d /home/bigl/.local/opt 0755 bigl users -"
-    "d /home/bigl/.local/opt/antigravity 0755 bigl users -"
-    "L+ /home/bigl/.local/opt/antigravity/Antigravity-x64 - - - - ${antigravity}/opt/antigravity"
-    "L+ /home/bigl/.local/opt/antigravity/antigravity.png - - - - ${./dotfiles/icons/antigravity.png}"
-    "d /home/bigl/.local/bin 0755 bigl users -"
-    "L+ /home/bigl/.local/bin/antigravity - - - - ${antigravity}/bin/antigravity"
-    "d /home/bigl/.local/share/icons/hicolor/512x512/apps 0755 bigl users -"
-    "C+ /home/bigl/.local/share/icons/hicolor/512x512/apps/antigravity.png 0644 bigl users - ${./dotfiles/icons/antigravity.png}"
-    # uBlock Origin pre-installed for ungoogled-chromium (100% reproducible baseline)
-    "d /home/bigl/.local/share/ungoogled-chromium 0755 bigl users -"
-    "d /home/bigl/.local/share/ungoogled-chromium/extensions 0755 bigl users -"
-    "C /home/bigl/.local/share/ungoogled-chromium/extensions/ublock.crx 0644 bigl users - ${ublock-crx}"
-    "d /home/bigl/.config/chromium 0755 bigl users -"
-    "d \"/home/bigl/.config/chromium/External Extensions\" 0755 bigl users -"
-    "C \"/home/bigl/.config/chromium/External Extensions/fkgkibajhfbepljeaefdnfnegdcjomkh.json\" 0644 bigl users - ${ublock-manifest}"
     # System-wide Chromium extension fallback
     "d /usr/share/chromium 0755 root root -"
     "d /usr/share/chromium/extensions 0755 root root -"

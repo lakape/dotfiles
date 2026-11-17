@@ -50,6 +50,10 @@ kos_dock_window_animationEnabled=true
 [Tiling]
 tiles={layoutDirection:horizontal, tiles:[{width:0.25}, {width:0.5}, {width:0.25}]}
 
+[Tiling][0089913f-0d49-4e28-9266-af29d4163044][0ea929cf-f239-4c9a-99f5-a429834991a6]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
 [Tiling][0089913f-0d49-4e28-9266-af29d4163044][3780ca34-7850-4583-a907-3eb5252cf499]
 padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
@@ -59,6 +63,10 @@ padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
 [Tiling][0089913f-0d49-4e28-9266-af29d4163044][85f4be7e-99b5-4a35-b978-698a9818e307]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
+[Tiling][aec7ec3a-ad66-4a3e-831f-375dd8ded1d8][0ea929cf-f239-4c9a-99f5-a429834991a6]
 padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
@@ -82,7 +90,7 @@ tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"wi
 FocusStealingPreventionSeverity=0
 
 [Xwayland]
-Scale=1.25
+Scale=1
 
 [org.kde.kdecoration2]
 library=org.kde.breeze
