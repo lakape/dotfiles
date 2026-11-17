@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
 {
   imports = [
@@ -9,21 +9,44 @@
   home.homeDirectory = "/home/bigl";
   home.stateVersion = "24.11";
 
-  # KOS JSON configurations (~/.config/kos)
-  xdg.configFile."kos".source = ./dotfiles/kos;
+  # User applications overrides, wallpapers & gallery (real writable dirs with symlinked files)
+  xdg.dataFile."applications" = {
+    source = ./dotfiles/applications;
+    recursive = true;
+  };
+  xdg.dataFile."wallpapers" = {
+    source = ./dotfiles/wallpapers;
+    recursive = true;
+  };
+  xdg.dataFile."kos/gallery" = {
+    source = ./dotfiles/kos-share/gallery;
+    recursive = true;
+  };
 
-  # Gemini CLI / Agent configuration (~/.gemini/config/config.json)
-  home.file.".gemini/config/config.json".source = ./dotfiles/gemini/config.json;
+  # KOS state & config must be real writable files inside $HOME, because
+  # kos-platform's security check (resolveStatePath) rejects symlinks pointing into /nix/store.
+  home.activation.syncKosConfigs = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    if [ -L "$HOME/.local/state/quickshell/kos" ]; then
+      rm -f "$HOME/.local/state/quickshell/kos"
+    fi
+    if [ -L "$HOME/.config/kos" ]; then
+      rm -f "$HOME/.config/kos"
+    fi
 
-  # User applications overrides (~/.local/share/applications)
-  xdg.dataFile."applications".source = ./dotfiles/applications;
+    mkdir -p "$HOME/.local/state/quickshell/kos" "$HOME/.config/kos"
+    cp -rf ${./dotfiles/quickshell-kos}/* "$HOME/.local/state/quickshell/kos/"
+    chmod -R u+rwX "$HOME/.local/state/quickshell/kos"
 
-  # KOS Wallpapers & Gallery (~/.local/share/wallpapers and ~/.local/share/kos/gallery)
-  xdg.dataFile."wallpapers".source = ./dotfiles/wallpapers;
-  xdg.dataFile."kos/gallery".source = ./dotfiles/kos-share/gallery;
+    cp -rf ${./dotfiles/kos}/* "$HOME/.config/kos/"
+    chmod -R u+rwX "$HOME/.config/kos"
 
-  # Quickshell state (~/.local/state/quickshell/kos)
-  xdg.stateFile."quickshell/kos".source = ./dotfiles/quickshell-kos;
+    # Seed initial Gemini config only if not yet present (Antigravity modifies this at runtime)
+    mkdir -p "$HOME/.gemini/config"
+    if [ ! -e "$HOME/.gemini/config/config.json" ]; then
+      cp ${./dotfiles/gemini/config.json} "$HOME/.gemini/config/config.json"
+      chmod 600 "$HOME/.gemini/config/config.json"
+    fi
+  '';
 
   # Bash shell integration & aliases
   programs.bash = {
