@@ -64,6 +64,7 @@ in
 {
   imports = [
     ./hardware-configuration.nix
+    ./school.nix
   ];
 
   # Bootloader EFI settings
