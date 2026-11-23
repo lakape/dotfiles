@@ -124,6 +124,7 @@ if [ ! -d "$DOTFILES_DIR" ]; then
     fi
 fi
 cp /mnt/etc/nixos/hardware-configuration.nix "$DOTFILES_DIR/hardware-configuration.nix"
+git -C "$DOTFILES_DIR" add "$DOTFILES_DIR/hardware-configuration.nix" 2>/dev/null || true
 
 FLAKE_TARGET="nixos"
 git -C "$DOTFILES_DIR" config --global --add safe.directory "*" 2>/dev/null || true
@@ -148,6 +149,14 @@ else
     echo "root:$DEFAULT_PASSWORD" | nixos-enter --root /mnt -c 'chpasswd'
     echo "bigl:$DEFAULT_PASSWORD" | nixos-enter --root /mnt -c 'chpasswd'
 fi
+
+echo ""
+echo "=========================================================="
+echo "    Provisioning user repository in /home/bigl/dotfiles... "
+echo "=========================================================="
+mkdir -p /mnt/home/bigl
+cp -r "$DOTFILES_DIR" "/mnt/home/bigl/dotfiles"
+nixos-enter --root /mnt -c 'chown -R bigl:users /home/bigl/dotfiles' 2>/dev/null || true
 
 echo ""
 echo "=========================================================="
