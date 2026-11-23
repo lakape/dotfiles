@@ -23,6 +23,15 @@
     recursive = true;
   };
 
+  # Clean legacy directory symlinks so recursive xdg.dataFile targets can be created as real directories
+  home.activation.cleanLegacySymlinks = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
+    for path in "$HOME/.local/share/wallpapers" "$HOME/.local/share/applications" "$HOME/.local/share/kos/gallery"; do
+      if [ -L "$path" ]; then
+        rm -f "$path"
+      fi
+    done
+  '';
+
   # KOS state & config must be real writable files inside $HOME, because
   # kos-platform's security check (resolveStatePath) rejects symlinks pointing into /nix/store.
   home.activation.syncKosConfigs = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
