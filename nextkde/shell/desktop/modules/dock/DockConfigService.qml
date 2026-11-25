@@ -136,7 +136,7 @@ QtObject {
     // developer's personal app pins.
     // App item: { type: "app", appId: "org.kde.kate.desktop" }
     property var dockItems: [
-        { type: "app", appId: "kos-settings.desktop" },
+        { type: "app", appId: "systemsettings.desktop" },
         { type: "app", appId: "org.kde.dolphin.desktop" },
         { type: "app", appId: "org.kde.kate.desktop" },
     ]
@@ -145,7 +145,7 @@ QtObject {
     // Never edit this directly in new code: use setDockItems/addAppItem
     // so all Dock persistence has one source of truth.
     property var pinnedAppIds: [
-        "kos-settings.desktop",
+        "systemsettings.desktop",
         "org.kde.dolphin.desktop",
         "org.kde.kate.desktop",
     ]

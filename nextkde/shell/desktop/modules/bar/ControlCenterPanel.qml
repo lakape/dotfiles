@@ -361,7 +361,7 @@ PopupWindow {
             // stageModeCard 同样发布 SurfaceShape（可见即发布）——漏列
             // 一张 = 声明的 shape 集比 region 多一个条目，全卡玻璃按它
             // 偏移（见本清单头注释；审计 🔴，glass 主题下实测错位源）
-            stageModeCard.visible && stageModeCard.backdropVisible ? stageModeCard.blurRegion : emptyRegion,
+            doNotDisturbCard.visible && doNotDisturbCard.backdropVisible ? doNotDisturbCard.blurRegion : emptyRegion,
             keepAwakeCard.visible && keepAwakeCard.backdropVisible ? keepAwakeCard.blurRegion : emptyRegion,
             sessionCard.visible && sessionCard.backdropVisible ? sessionCard.blurRegion : emptyRegion,
             submenuCard.visible && submenuCard.backdropVisible ? submenuCard.blurRegion : emptyRegion,
@@ -738,8 +738,8 @@ PopupWindow {
     }
 
     // Utility toggles share the row between the quick actions and brightness.
-    ControlParts.StageModeCard {
-        id: stageModeCard
+    ControlParts.DoNotDisturbCard {
+        id: doNotDisturbCard
         coordinator: coordinator
         offsetTop: 155 + panel.mainControlsOffsetY
         offsetRight: 20 + panel.halfControlWidth + 8
@@ -748,7 +748,7 @@ PopupWindow {
         cardHeight: 44
         blurStrength: panel.effectiveBlur
         liquidStrength: panel.effectiveLiquid
-        stageMode: StageModeService
+        service: ControlCenterService
     }
 
     // Caffeine is held by the resident service, never the popup lifetime.

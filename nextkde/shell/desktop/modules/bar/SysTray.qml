@@ -528,11 +528,14 @@ Item {
                 Drag.proposedAction: Qt.MoveAction
                 Drag.onDragFinished: function(action) { root.nativeDragFinished(trayItem.trayKey, action) }
                 readonly property string tooltip: modelData ? SysTrayIdentityService.friendlyName(modelData) : ""
+                readonly property bool isBlip: tooltip.toLowerCase().indexOf("blip") !== -1
+                    || String(modelData?.id || "").toLowerCase().indexOf("blip") !== -1
                 readonly property bool isSymbolicMask: Boolean(modelData?.isMask)
                     || (typeof modelData?.icon === "string" && (
                         modelData.icon.indexOf("symbolic") !== -1
                         || modelData.icon.indexOf("-mask") !== -1
                     ))
+                    || isBlip
 
                 function openMenu() {
                     if (!modelData.hasMenu)
@@ -582,6 +585,7 @@ Item {
                     rotation: root.verticalDock && !trayItem.inCollection ? -90 : 0
                     layer.enabled: trayItem.isSymbolicMask && IconAppearanceService.mode === "color"
                     layer.effect: MultiEffect {
+                        brightness: trayItem.isBlip ? 1.0 : 0.0
                         colorization: 1.0
                         colorizationColor: ThemeService.foregroundColor
                     }

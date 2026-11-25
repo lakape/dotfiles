@@ -64,7 +64,6 @@ in
 {
   imports = [
     ./hardware-configuration.nix
-    ./school.nix
   ];
 
   # Bootloader EFI settings
@@ -78,6 +77,38 @@ in
   # Networking
   networking.hostName = "nixos";
   networking.networkmanager.enable = true;
+  networking.networkmanager.plugins = [ pkgs.networkmanager-openvpn ];
+  networking.networkmanager.dispatcherScripts = [
+    {
+      source = pkgs.writeText "htl-storage-dispatcher" ''
+        #!/bin/sh
+        if [ "$2" = "down" ] || [ "$2" = "vpn-down" ]; then
+          if ${pkgs.util-linux}/bin/mountpoint -q /mnt/school/MEDT; then
+            ${pkgs.util-linux}/bin/umount -l /mnt/school/MEDT || true
+          fi
+        fi
+      '';
+      type = "basic";
+    }
+  ];
+
+  # HTL SSD Storage (MEDT) via systemd automount + short timeout
+  fileSystems."/mnt/school/MEDT" = {
+    device = "//htl-ssd-storage01.htl-vil.local/MEDT";
+    fsType = "cifs";
+    options = [
+      "x-systemd.automount"
+      "noauto"
+      "soft"
+      "x-systemd.idle-timeout=60"
+      "x-systemd.device-timeout=5s"
+      "x-systemd.mount-timeout=5s"
+      "uid=1000"
+      "gid=100"
+      "vers=3.0"
+      "credentials=/etc/nixos/smb-secrets"
+    ];
+  };
 
   # ZRAM swap for memory efficiency and stability
   zramSwap.enable = true;
@@ -302,6 +333,10 @@ in
   # System Packages (all tools consolidated declaratively)
   environment.localBinInPath = true;
   environment.systemPackages = with pkgs; [
+    rclone
+    openssl
+    kdePackages.kdialog
+    cifs-utils
     antigravity
     ungoogled-chromium
     bluez

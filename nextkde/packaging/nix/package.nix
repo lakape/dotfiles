@@ -9,10 +9,6 @@
 
 let
   shell-data-service = pkgs.callPackage ./shell-data-service.nix { inherit src; };
-  kos-settings = pkgs.callPackage ./kos-settings.nix {
-    inherit src;
-    quickshell = if quickshell != null then quickshell else pkgs.quickshell;
-  };
   kos-platform = pkgs.callPackage ./kos-platform.nix { inherit src; };
   kos-surface-shape = pkgs.callPackage ./kos-surface-shape.nix { inherit src; };
   kos-spatial3d = pkgs.callPackage ./kos-spatial3d.nix { inherit src; };
@@ -75,7 +71,6 @@ stdenv.mkDerivation {
     ln -s ${shell-data-service}/libexec/kos-data-service $out/libexec/kos-data-service
 
     mkdir -p $out/bin
-    ln -s ${kos-settings}/bin/kos-settings $out/bin/kos-settings
 
     # --- Weather app (optional) ---
     ${lib.optionalString buildWeather ''
@@ -89,10 +84,6 @@ stdenv.mkDerivation {
     cp shell/shell.qml $out/share/kos-desktop/shell.qml
     cp -r shell/desktop $out/share/kos-desktop/desktop
 
-    # --- Settings QML (for reference; kos-settings binary embeds path) ---
-    mkdir -p $out/share/kos/settings
-    cp apps/settings/*.qml $out/share/kos/settings/
-    cp -r apps/settings/icons $out/share/kos/settings/
     mkdir -p $out/qml/Kos
     ln -s ${kos-spatial3d}/lib/qt6/qml/Kos/Spatial3D $out/qml/Kos/Spatial3D
     ln -s ${kos-surface-shape}/lib/qt6/qml/Kos/SurfaceShape $out/qml/Kos/SurfaceShape
@@ -115,9 +106,6 @@ stdenv.mkDerivation {
 
     # --- Desktop entries ---
     mkdir -p $out/share/applications
-    substitute packaging/desktop/kos-settings.desktop.in \
-      $out/share/applications/kos-settings.desktop \
-      --replace-fail 'kos-settings' "${kos-settings}/bin/kos-settings"
     substitute packaging/desktop/org.kos.Platform.desktop.in \
       $out/share/applications/org.kos.Platform.desktop \
       --replace-fail '@KOS_PLATFORM_EXEC@' "${kos-platform}/libexec/kos-platform"
@@ -145,7 +133,7 @@ stdenv.mkDerivation {
   '';
 
   passthru = {
-    inherit shell-data-service kos-settings kos-platform kos-spatial3d kos-surface-shape kosctl
+    inherit shell-data-service kos-platform kos-spatial3d kos-surface-shape kosctl
             kwin-dock-window-animation kwin-stage-animation kwin-context-menu-input kwin-effects-glass
             kwin-kos-bridge kwin-kos-decoration;
     inherit patched-platform-service patched-shell-service;

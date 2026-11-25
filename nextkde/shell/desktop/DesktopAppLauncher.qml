@@ -12,7 +12,7 @@ QtObject {
     // Settings window id. `kos-settings` sets QGuiApplication::setDesktopFileName
     // to the same value, so its live window resolves to this desktop id through
     // the shared identity boundary.
-    readonly property string settingsDesktopId: "kos-settings"
+    readonly property string settingsDesktopId: "systemsettings"
 
     // The Settings window the user already has open, or null. KWin owns these
     // windows, so the lookup stays correct after the window is minimized, moved
@@ -43,20 +43,7 @@ QtObject {
             return
         launchPending.restart()
 
-        // Fixed-argv launch through the platform daemon. Quickshell.shellDir
-        // is passed as data so the daemon can export KOS_SHELL_DIR: Settings
-        // talks back to its Shell over Quickshell IPC, and a source-tree
-        // session must open a Settings window connected to that same session
-        // rather than the installed `kos` configuration.
-        PlatformClient.request("settings.launch", {
-            shellDir: Quickshell.shellDir
-        }, function(response) {
-            if (!response?.ok) {
-                launchPending.stop()
-                console.warn("[Launcher] kos-settings launch failed: "
-                    + (response?.error?.message || "platform unavailable"))
-            }
-        })
+        AppActionService.launchById("systemsettings.desktop")
     }
 
     // Covers the gap between the launch request returning and the compositor

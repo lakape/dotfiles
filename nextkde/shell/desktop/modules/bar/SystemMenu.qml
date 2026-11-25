@@ -36,6 +36,7 @@ Item {
             { separator: true },
             { label: I18n.tr("Sleep"), cmd: "suspend",
               enabled: sessionReady && ControlCenterService.canSuspend },
+            { label: I18n.tr("Hibernate"), cmd: "hibernate", enabled: sessionReady },
             { label: I18n.tr("Restart…"), cmd: "reboot", enabled: sessionReady },
             { label: I18n.tr("Shut Down…"), cmd: "poweroff", enabled: sessionReady },
             { separator: true },
@@ -98,6 +99,8 @@ Item {
                 ControlCenterService.lockSession()
             else if (cmd === "suspend")
                 ControlCenterService.suspendSystem()
+            else if (cmd === "hibernate")
+                ControlCenterService.hibernateSystem()
             else if (cmd === "reboot" || cmd === "poweroff" || cmd === "logout") {
                 // Let ContextMenu finish its click dispatch before presenting
                 // the existing control-center confirmation dialog.

@@ -11,7 +11,7 @@
   "dockItems": [
     {
       "type": "app",
-      "appId": "kos-settings.desktop"
+      "appId": "systemsettings.desktop"
     },
     {
       "type": "app",
@@ -19,7 +19,7 @@
     }
   ],
   "pinnedAppIds": [
-    "kos-settings.desktop",
+    "systemsettings.desktop",
     "org.kde.dolphin.desktop"
   ],
   "proportions": {

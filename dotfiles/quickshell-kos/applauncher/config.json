@@ -29,6 +29,8 @@
     "org.kde.khelpcenter",
     "org.kde.kinfocenter",
     "kos-settings",
+    "kdesystemsettings",
+    "kdesystemsettings.desktop",
     "cups",
     "cups.desktop",
     "print-manager",
