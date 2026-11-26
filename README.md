@@ -2,13 +2,14 @@
 
 Flake-based declarative NixOS configuration providing a fully integrated desktop environment based on KDE Plasma 6 and NextKDE (KOS desktop shell).
 
-The setup is consolidated into a single configuration file (`configuration.nix`) and designed to run identically across any physical machine (Intel, AMD, NVIDIA) or virtual machine.
+The setup is consolidated into a single configuration file (`configuration.nix`) and designed to run identically on any x86_64 UEFI machine or virtual machine.
 
 ---
 
 ## Hardware & Driver Architecture
 
-- **Graphics:** `videoDrivers = [ "nvidia" "modesetting" ]`. Machines with an NVIDIA GPU automatically load the proprietary driver with PRIME offload. Machines without an NVIDIA GPU (Intel/AMD laptops, virtual machines) cleanly fall back to kernel modesetting via Mesa.
+- **Graphics:** Mesa with kernel modesetting (Intel, AMD, virtual machines). The proprietary NVIDIA driver (`nvidia.nix`) is only enabled on machines where the installer detects an NVIDIA GPU; on hybrid laptops it also sets up PRIME offload.
+- **Hibernation:** A swap partition sized from the RAM (RAM + √RAM, rounded up) is created by the installer and used to resume from hibernation. zram stays the primary swap for normal operation.
 - **Architecture:** x86_64 UEFI.
 - **Storage footprint:** ~13–14 GiB initial disk footprint post-installation. A minimum disk partition of 50 GiB is recommended for ongoing generations, build caches, and user data.
 - **Integrated tooling:** Helium browser (built-in uBlock Origin), Ladybird browser, Teams for Linux, Blip file transfer, PipeWire audio, Podman container engine, Node.js, Python 3, PostgreSQL, Apple SF-Pro typography.
@@ -32,11 +33,11 @@ curl -sL https://raw.githubusercontent.com/lakape/dotfiles/master/scripts/instal
 ### Installation Procedure
 
 1. Identifies the target block device (NVMe, SATA, or VirtIO) and prompts for confirmation.
-2. Creates a GPT partition table with a 512 MiB EFI system partition and a Btrfs root partition spanning the remainder.
-3. Formats filesystems (`vfat` on `/boot`, `btrfs` on `/`).
+2. Computes the swap size from the RAM (RAM + √RAM, rounded up; adjustable at the prompt or via `SWAP_SIZE_GIB`) and creates a GPT partition table: 512 MiB EFI system partition, Btrfs root, and a swap partition at the end of the disk.
+3. Formats filesystems (`vfat` on `/boot`, `btrfs` on `/`, `swap`) and activates the swap partition.
 4. Creates Btrfs subvolumes (`home`, `nix`) and mounts `/`, `/home`, and `/nix` with transparent ZSTD compression.
-5. Runs `nixos-generate-config --root /mnt` to capture local hardware parameters.
-6. Clones this repository into `/mnt/etc/dotfiles` and links the generated `hardware-configuration.nix`.
+5. Runs `nixos-generate-config --root /mnt` to capture local hardware parameters, including the swap partition.
+6. Clones this repository into `/mnt/etc/dotfiles`, copies the generated `hardware-configuration.nix` and, if an NVIDIA GPU is present, adds the `dotfiles.nvidia` settings to it.
 7. Builds and installs the system via `nixos-install --no-root-passwd --flake /mnt/etc/dotfiles#nixos`.
 8. Prompts to set passwords for both `root` and the primary user `bigl` via `nixos-enter`.
 

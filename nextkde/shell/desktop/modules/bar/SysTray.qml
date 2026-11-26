@@ -528,14 +528,82 @@ Item {
                 Drag.proposedAction: Qt.MoveAction
                 Drag.onDragFinished: function(action) { root.nativeDragFinished(trayItem.trayKey, action) }
                 readonly property string tooltip: modelData ? SysTrayIdentityService.friendlyName(modelData) : ""
+                // Some tray items ship a dark monochrome glyph without a symbolic/mask
+                // hint. They are recolored like symbolic icons and brightened first,
+                // so they match the bar's foreground color instead of staying black.
                 readonly property bool isBlip: tooltip.toLowerCase().indexOf("blip") !== -1
                     || String(modelData?.id || "").toLowerCase().indexOf("blip") !== -1
+                // Plasma's "microphone in use" indicator (microphone-sensitivity-* icons)
+                readonly property bool isMicrophoneIndicator: String(modelData?.id || "") === "plasmashell_microphone"
+                    || (typeof modelData?.icon === "string"
+                        && modelData.icon.indexOf("microphone-sensitivity") !== -1)
+                // Generic case: glyphProbe found a single-tone grayscale icon
+                property bool isMonochromeGlyph: false
+                readonly property bool needsGlyphRecolor: isBlip || isMicrophoneIndicator || isMonochromeGlyph
                 readonly property bool isSymbolicMask: Boolean(modelData?.isMask)
                     || (typeof modelData?.icon === "string" && (
                         modelData.icon.indexOf("symbolic") !== -1
                         || modelData.icon.indexOf("-mask") !== -1
                     ))
-                    || isBlip
+                    || needsGlyphRecolor
+
+                // Single-tone grayscale artwork (e.g. Breeze status icons that KDE
+                // renders dark for a light color scheme) is treated like a symbolic
+                // icon. Only nearly opaque pixels are measured, so antialiased edges
+                // do not count; colored or multi-tone icons are left untouched.
+                function isSingleToneGray(px) {
+                    let opaque = 0
+                    let colored = 0
+                    let minLuma = 255
+                    let maxLuma = 0
+                    for (let i = 0; i < px.length; i += 4) {
+                        if (px[i + 3] < 230)
+                            continue
+                        const r = px[i], g = px[i + 1], b = px[i + 2]
+                        opaque++
+                        if (Math.max(r, g, b) - Math.min(r, g, b) > 40)
+                            colored++
+                        const luma = 0.299 * r + 0.587 * g + 0.114 * b
+                        minLuma = Math.min(minLuma, luma)
+                        maxLuma = Math.max(maxLuma, luma)
+                    }
+                    return opaque >= 8 && colored <= opaque * 0.03 && maxLuma - minLuma <= 64
+                }
+
+                // Measures the rendered tray icon. grabToImage() reuses the pixmap
+                // that is already loaded on the GUI thread, so the icon provider is
+                // never queried from another thread (see AppIcon.asynchronous).
+                function probeGlyph() {
+                    if (trayIcon.imageStatus !== Image.Ready || trayIcon.width <= 0)
+                        return
+                    trayIcon.grabToImage(function(result) {
+                        glyphProbe.pendingGrab = result
+                        glyphProbe.loadImage(result.url)
+                    }, Qt.size(glyphProbe.width, glyphProbe.height))
+                }
+
+                Canvas {
+                    id: glyphProbe
+                    property var pendingGrab: null
+                    width: 24
+                    height: 24
+                    opacity: 0
+                    enabled: false
+                    renderTarget: Canvas.Image
+                    renderStrategy: Canvas.Immediate
+                    onImageLoaded: {
+                        const grab = pendingGrab
+                        if (!grab || !available || !isImageLoaded(grab.url))
+                            return
+                        const ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
+                        ctx.drawImage(grab.url, 0, 0, width, height)
+                        const px = ctx.getImageData(0, 0, width, height).data
+                        unloadImage(grab.url)
+                        pendingGrab = null
+                        trayItem.isMonochromeGlyph = trayItem.isSingleToneGray(px)
+                    }
+                }
 
                 function openMenu() {
                     if (!modelData.hasMenu)
@@ -573,10 +641,14 @@ Item {
                 }
 
                 AppIcon {
+                    id: trayIcon
                     width: root.iconSize
                     height: root.iconSize
                     anchors.centerIn: parent
                     source: trayItem.modelData.icon
+                    onSourceChanged: Qt.callLater(trayItem.probeGlyph)
+                    onImageStatusChanged: Qt.callLater(trayItem.probeGlyph)
+                    Component.onCompleted: Qt.callLater(trayItem.probeGlyph)
                     opacityMultiplier: IconAppearanceService.mode !== "color"
                         ? IconAppearanceService.opacity : 1.0
                     saturation: IconAppearanceService.saturation
@@ -585,7 +657,7 @@ Item {
                     rotation: root.verticalDock && !trayItem.inCollection ? -90 : 0
                     layer.enabled: trayItem.isSymbolicMask && IconAppearanceService.mode === "color"
                     layer.effect: MultiEffect {
-                        brightness: trayItem.isBlip ? 1.0 : 0.0
+                        brightness: trayItem.needsGlyphRecolor ? 1.0 : 0.0
                         colorization: 1.0
                         colorizationColor: ThemeService.foregroundColor
                     }

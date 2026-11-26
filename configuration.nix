@@ -6,6 +6,7 @@
 {
   imports = [
     ./hardware-configuration.nix
+    ./nvidia.nix
   ];
 
   # Bootloader EFI settings
@@ -52,8 +53,13 @@
     ];
   };
 
-  # ZRAM swap for memory efficiency and stability
+  # ZRAM swap for memory efficiency and stability (used first, higher priority)
   zramSwap.enable = true;
+
+  # Hibernation: scripts/install.sh creates a swap partition sized from the
+  # machine's RAM, and nixos-generate-config lists it in hardware-configuration.nix.
+  # Resume from that partition (zram is never part of swapDevices).
+  boot.resumeDevice = lib.mkIf (config.swapDevices != [ ]) (lib.head config.swapDevices).device;
 
   # Time & Locales
   time.timeZone = "Europe/Vienna";
@@ -132,25 +138,6 @@
     ];
   };
 
-  # Tolerant Video Drivers: Loads NVIDIA when hardware present, falls back to modesetting
-  services.xserver.videoDrivers = [ "nvidia" "modesetting" ];
-  hardware.nvidia = {
-    modesetting.enable = true;
-    powerManagement.enable = true;
-    powerManagement.finegrained = true;
-    open = true;
-    nvidiaSettings = true;
-    package = config.boot.kernelPackages.nvidiaPackages.stable;
-    prime = {
-      offload = {
-        enable = true;
-        enableOffloadCmd = true;
-      };
-      intelBusId = "PCI:0:2:0";
-      nvidiaBusId = "PCI:1:0:0";
-    };
-  };
-
   # Native Wayland for Chromium-based browsers (Helium) and Electron apps
   environment.sessionVariables = {
     NIXOS_OZONE_WL = "1";
@@ -202,7 +189,50 @@
   programs.steam.enable = false;
 
   # Helium browser (flake input "helium"): Chromium-based, ships uBlock Origin built in
-  programs.helium.enable = true;
+  programs.helium = {
+    enable = true;
+    # Chromium enterprise policies: https://chromeenterprise.google/policies/
+    policies = {
+      # Search: DuckDuckGo as the default search engine
+      DefaultSearchProviderEnabled = true;
+      DefaultSearchProviderName = "DuckDuckGo";
+      DefaultSearchProviderKeyword = "duckduckgo.com";
+      DefaultSearchProviderSearchURL = "https://duckduckgo.com/?q={searchTerms}";
+      DefaultSearchProviderSuggestURL = "https://duckduckgo.com/ac/?q={searchTerms}&type=list";
+      DefaultSearchProviderIconURL = "https://duckduckgo.com/favicon.ico";
+
+      # Startup: reopen the tabs of the last session
+      RestoreOnStartup = 1;
+
+      # Bookmarks: managed folder on an always visible bookmark bar
+      BookmarkBarEnabled = true;
+      ManagedBookmarks = [
+        { toplevel_name = "Bookmarks"; }
+        { name = "EVW"; url = "https://www.evw.at/"; }
+      ];
+
+      # Downloads: always ask where to save a file
+      PromptForDownloadLocation = true;
+
+      # The default browser is managed by this configuration (plasma.nix)
+      DefaultBrowserSettingEnabled = false;
+
+      # Do not store payment cards in the browser
+      AutofillCreditCardEnabled = false;
+
+      # Passwords live in a self-hosted Vaultwarden: install the Bitwarden
+      # extension automatically (set the server URL once in the extension)
+      # and turn off the built-in password manager.
+      # uBlock Origin is already bundled with Helium.
+      ExtensionInstallForcelist = [
+        "nngceckbapebfimnlniiiahkandclblb;https://clients2.google.com/service/update2/crx"
+      ];
+      PasswordManagerEnabled = false;
+
+      # Only HTTPS: plain HTTP pages show a warning page first
+      HttpsOnlyMode = "force_enabled";
+    };
+  };
 
   # Blip file transfer (flake input "blip"); starts in the background at login
   programs.blip.enable = true;
