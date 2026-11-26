@@ -1,7 +1,7 @@
 # 100% Reproducible Unified NixOS Configuration
 # Everything in ONE single configuration file for any computer.
 
-{ config, pkgs, lib, ... }:
+{ config, options, pkgs, lib, ... }:
 
 {
   imports = [
@@ -191,6 +191,24 @@
   # Helium browser (flake input "helium"): Chromium-based, ships uBlock Origin built in
   programs.helium = {
     enable = true;
+
+    # Upstream adds the flag below as a shell expression, but the generated
+    # binary wrapper does not expand it: Helium received the literal text as an
+    # extra command-line argument (headless mode fails with "Multiple targets").
+    # Drop it and pass the intended flag directly instead. The assert makes the
+    # evaluation fail once upstream changes this, so the workaround can go.
+    package =
+      let
+        upstream = options.programs.helium.package.default;
+        brokenFlag = ''--add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto}}"'';
+      in
+      assert lib.assertMsg (lib.hasInfix brokenFlag upstream.preFixup)
+        "Helium wrapper changed upstream: remove the preFixup workaround in configuration.nix";
+      upstream.overrideAttrs (old: {
+        preFixup = lib.replaceStrings [ brokenFlag ] [ "" ] old.preFixup;
+      });
+    flags = [ "--ozone-platform-hint=auto" ];
+
     # Chromium enterprise policies: https://chromeenterprise.google/policies/
     policies = {
       # Search: DuckDuckGo as the default search engine

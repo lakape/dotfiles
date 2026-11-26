@@ -579,6 +579,10 @@ Item {
                     trayIcon.grabToImage(function(result) {
                         glyphProbe.pendingGrab = result
                         glyphProbe.loadImage(result.url)
+                        // Grab results are usually loaded synchronously, and then
+                        // Canvas never emits imageLoaded, so measure right away.
+                        if (glyphProbe.isImageLoaded(result.url))
+                            glyphProbe.measure()
                     }, Qt.size(glyphProbe.width, glyphProbe.height))
                 }
 
@@ -591,7 +595,9 @@ Item {
                     enabled: false
                     renderTarget: Canvas.Image
                     renderStrategy: Canvas.Immediate
-                    onImageLoaded: {
+                    onImageLoaded: measure()
+
+                    function measure() {
                         const grab = pendingGrab
                         if (!grab || !available || !isImageLoaded(grab.url))
                             return
