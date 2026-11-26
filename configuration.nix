@@ -1,7 +1,7 @@
 # 100% Reproducible Unified NixOS Configuration
 # Everything in ONE single configuration file for any computer.
 
-{ config, options, pkgs, lib, ... }:
+{ config, options, pkgs, lib, username, ... }:
 
 {
   imports = [
@@ -154,9 +154,9 @@
   };
 
   # User account
-  users.users."bigl" = {
+  users.users.${username} = {
     isNormalUser = true;
-    description = "bigl";
+    description = username;
     extraGroups = [ "networkmanager" "wheel" "unifi-endpoint" ];
     # Public keys allowed to log in via SSH (one "ssh-ed25519 AAAA... comment" per entry)
     openssh.authorizedKeys.keys = [ ];
@@ -391,11 +391,11 @@
 
   # Shell aliases
   programs.bash.shellAliases = {
-    rebuild = "/run/wrappers/bin/sudo nixos-rebuild switch --flake /home/bigl/dotfiles#nixos";
-    update-flake = "cd /home/bigl/dotfiles && nix flake update";
+    rebuild = "/run/wrappers/bin/sudo nixos-rebuild switch --flake /home/${username}/dotfiles#nixos";
+    update-flake = "cd /home/${username}/dotfiles && nix flake update";
   };
 
-  # SSH server: key-based logins only (keys in users.users.bigl.openssh.authorizedKeys)
+  # SSH server: key-based logins only (keys in users.users.<username>.openssh.authorizedKeys)
   services.openssh = {
     enable = true;
     settings = {

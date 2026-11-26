@@ -26,11 +26,17 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, plasma-manager, nextkde, ... }@inputs: {
+  outputs = { self, nixpkgs, home-manager, plasma-manager, nextkde, ... }@inputs:
+  let
+    # Login name of the primary user. scripts/install.sh has the same value in
+    # PRIMARY_USER; change both together.
+    username = "user";
+  in
+  {
     nixosConfigurations = {
       "nixos" = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
-        specialArgs = { inherit inputs; };
+        specialArgs = { inherit inputs username; };
         modules = [
           ./configuration.nix
           nextkde.nixosModules.kos
@@ -42,8 +48,8 @@
             home-manager.useUserPackages = true;
             home-manager.backupFileExtension = "backup";
             home-manager.sharedModules = [ plasma-manager.homeModules.plasma-manager ];
-            home-manager.users.bigl = import ./home.nix;
-            home-manager.extraSpecialArgs = { inherit inputs; };
+            home-manager.users.${username} = import ./home.nix;
+            home-manager.extraSpecialArgs = { inherit inputs username; };
           }
         ];
       };

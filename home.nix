@@ -1,12 +1,12 @@
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, username, ... }:
 
 {
   imports = [
     ./plasma.nix
   ];
 
-  home.username = "bigl";
-  home.homeDirectory = "/home/bigl";
+  home.username = username;
+  home.homeDirectory = "/home/${username}";
   home.stateVersion = "24.11";
 
   # Wallpapers & gallery (real writable dirs with symlinked files)
@@ -45,6 +45,8 @@
     mkdir -p "$HOME/.local/state/quickshell/kos" "$HOME/.config/kos"
     cp -r --update=none ${./dotfiles/quickshell-kos}/* "$HOME/.local/state/quickshell/kos/"
     chmod -R u+rwX "$HOME/.local/state/quickshell/kos"
+    # Repository files use @HOME@ instead of a fixed home directory path
+    grep -rlI -F '@HOME@' "$HOME/.local/state/quickshell/kos" | xargs -r sed -i "s|@HOME@|$HOME|g"
 
     cp -r --update=none ${./dotfiles/kos}/* "$HOME/.config/kos/"
     chmod -R u+rwX "$HOME/.config/kos"
@@ -57,7 +59,9 @@
   home.activation.seedPlasmaLayout = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     layout="$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
     if [ ! -e "$layout" ]; then
-      install -Dm600 ${./dotfiles/kde/plasma-org.kde.plasma.desktop-appletsrc} "$layout"
+      mkdir -p "$(dirname "$layout")"
+      sed "s|@HOME@|$HOME|g" ${./dotfiles/kde/plasma-org.kde.plasma.desktop-appletsrc} > "$layout"
+      chmod 600 "$layout"
     fi
   '';
 
@@ -71,8 +75,8 @@
       fi
     '';
     shellAliases = {
-      rebuild = "/run/wrappers/bin/sudo nixos-rebuild switch --flake /home/bigl/dotfiles#nixos";
-      update-flake = "cd /home/bigl/dotfiles && nix flake update";
+      rebuild = "/run/wrappers/bin/sudo nixos-rebuild switch --flake /home/${username}/dotfiles#nixos";
+      update-flake = "cd /home/${username}/dotfiles && nix flake update";
     };
   };
 

@@ -18,6 +18,9 @@ echo "=========================================================="
 
 TARGET_DISK="${1:-}"
 
+# Login name of the primary user; must match `username` in flake.nix
+PRIMARY_USER="user"
+
 # BEGIN gpu-detection
 # Converts a sysfs PCI address (hex, e.g. 0000:01:00.0) into the decimal
 # PCI:bus:device:function notation used by hardware.nvidia.prime.
@@ -76,7 +79,7 @@ add_nvidia_settings() {
 # END gpu-detection
 
 # Prompts go to the terminal. Unattended runs (no terminal, CI=1 or AUTOMATED set)
-# skip all prompts and must provide USER_PASSWORD (used for root and bigl);
+# skip all prompts and must provide USER_PASSWORD (used for root and the user);
 # there is no built-in default password.
 if { : < /dev/tty; } 2>/dev/null && [ "${CI:-}" != "1" ] && [ -z "${AUTOMATED:-}" ]; then
     INTERACTIVE=1
@@ -229,8 +232,8 @@ nixos-generate-config --root /mnt
 echo "[6/6] Cloning configuration repository..."
 # The repository lives in the user's home; the system is installed and later
 # rebuilt from there (see the "rebuild" alias in home.nix).
-DOTFILES_DIR="/mnt/home/bigl/dotfiles"
-mkdir -p /mnt/home/bigl
+DOTFILES_DIR="/mnt/home/$PRIMARY_USER/dotfiles"
+mkdir -p "/mnt/home/$PRIMARY_USER"
 if [ ! -d "$DOTFILES_DIR" ]; then
     if [ -d "/home/nixos/dotfiles" ]; then
         echo "Copying dotfiles from local system..."
@@ -262,7 +265,7 @@ nixos-install --no-root-passwd --flake "$DOTFILES_DIR#$FLAKE_TARGET" --max-jobs 
 
 echo ""
 echo "=========================================================="
-echo "    Setting passwords for users 'root' and 'bigl'...      "
+echo "    Setting passwords for users 'root' and '$PRIMARY_USER'..."
 echo "=========================================================="
 set_password() {
     local user="$1"
@@ -276,10 +279,10 @@ set_password() {
     fi
 }
 set_password root
-set_password bigl
+set_password "$PRIMARY_USER"
 
-# The home directory and the repository were created by root before bigl existed
-nixos-enter --root /mnt -c 'chown bigl:users /home/bigl && chmod 700 /home/bigl && chown -R bigl:users /home/bigl/dotfiles'
+# The home directory and the repository were created by root before the user existed
+nixos-enter --root /mnt -c "chown $PRIMARY_USER:users /home/$PRIMARY_USER && chmod 700 /home/$PRIMARY_USER && chown -R $PRIMARY_USER:users /home/$PRIMARY_USER/dotfiles"
 
 echo "=========================================================="
 echo "    Installation completed successfully.                  "

@@ -14,7 +14,7 @@ plugin=org.kde.plasma.folder
 wallpaperplugin=org.kde.image
 
 [Containments][1][Wallpaper][org.kde.image][General]
-Image=/home/bigl/.local/share/kos/gallery/wallpaper.jpg
+Image=@HOME@/.local/share/kos/gallery/wallpaper.jpg
 
 [Containments][2]
 activityId=ba6725b0-9be1-4edb-beda-d929c6ead10d
@@ -26,7 +26,7 @@ plugin=org.kde.plasma.folder
 wallpaperplugin=org.kde.image
 
 [Containments][2][Wallpaper][org.kde.image][General]
-Image=/home/bigl/.local/share/kos/gallery/wallpaper.jpg
+Image=@HOME@/.local/share/kos/gallery/wallpaper.jpg
 
 [ScreenMapping]
 itemsOnDisabledScreens=

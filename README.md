@@ -2,7 +2,7 @@
 
 Flake-based declarative NixOS configuration providing a fully integrated desktop environment based on KDE Plasma 6 and NextKDE (KOS desktop shell).
 
-The system is described by `configuration.nix` (system), `home.nix` and `plasma.nix` (user, via Home Manager and plasma-manager) and `nvidia.nix` (optional driver). Only `hardware-configuration.nix` is machine-specific; the installer generates it. The setup runs on any x86_64 UEFI machine or virtual machine.
+The primary user is called `user` (set once as `username` in `flake.nix` and as `PRIMARY_USER` in `scripts/install.sh`). The system is described by `configuration.nix` (system), `home.nix` and `plasma.nix` (user, via Home Manager and plasma-manager) and `nvidia.nix` (optional driver). Only `hardware-configuration.nix` is machine-specific; the installer generates it. The setup runs on any x86_64 UEFI machine or virtual machine.
 
 ---
 
@@ -32,7 +32,7 @@ The script asks for root rights itself. Without a disk argument it lists the det
 curl -fsSL https://raw.githubusercontent.com/lakape/dotfiles/master/scripts/install.sh | sudo bash -s -- /dev/nvme0n1
 ```
 
-**Unattended installation:** set `AUTOMATED=1` (or `CI=1`) and `USER_PASSWORD=<password>` (used for `root` and `bigl`). All prompts are skipped, so the disk is erased without confirmation. `SWAP_SIZE_GIB=<n>` overrides the computed swap size.
+**Unattended installation:** set `AUTOMATED=1` (or `CI=1`) and `USER_PASSWORD=<password>` (used for `root` and `user`). All prompts are skipped, so the disk is erased without confirmation. `SWAP_SIZE_GIB=<n>` overrides the computed swap size.
 
 ### Installation Procedure
 
@@ -41,9 +41,9 @@ curl -fsSL https://raw.githubusercontent.com/lakape/dotfiles/master/scripts/inst
 3. Formats the partitions (`vfat` on `/boot`, `btrfs` on `/`, `swap`) and creates the Btrfs subvolumes `home` and `nix`.
 4. Mounts everything with zstd compression and activates the swap partition.
 5. Runs `nixos-generate-config --root /mnt`, which records the hardware and the swap partition.
-6. Clones this repository into `/mnt/home/bigl/dotfiles` and copies the generated `hardware-configuration.nix` into it. If an NVIDIA GPU is present, the `dotfiles.nvidia` settings are added to that file. The file is marked with `git update-index --skip-worktree`, so it never shows up as a change.
-7. Installs the system with `nixos-install --flake /mnt/home/bigl/dotfiles#nixos`.
-8. Asks for the passwords of `root` and `bigl` (there is no default password) and hands the home directory over to `bigl`.
+6. Clones this repository into `/mnt/home/user/dotfiles` and copies the generated `hardware-configuration.nix` into it. If an NVIDIA GPU is present, the `dotfiles.nvidia` settings are added to that file. The file is marked with `git update-index --skip-worktree`, so it never shows up as a change.
+7. Installs the system with `nixos-install --flake /mnt/home/user/dotfiles#nixos`.
+8. Asks for the passwords of `root` and `user` (there is no default password) and hands the home directory over to `user`.
 
 Afterwards, reboot into the installed system:
 
@@ -106,19 +106,19 @@ On a machine with an NVIDIA GPU, add the driver settings to `/mnt/etc/nixos/hard
 ### 4. Clone the Repository
 
 ```bash
-git clone https://github.com/lakape/dotfiles.git /mnt/home/bigl/dotfiles
-cp /mnt/etc/nixos/hardware-configuration.nix /mnt/home/bigl/dotfiles/
-git -C /mnt/home/bigl/dotfiles update-index --skip-worktree hardware-configuration.nix
+git clone https://github.com/lakape/dotfiles.git /mnt/home/user/dotfiles
+cp /mnt/etc/nixos/hardware-configuration.nix /mnt/home/user/dotfiles/
+git -C /mnt/home/user/dotfiles update-index --skip-worktree hardware-configuration.nix
 ```
 
 ### 5. Install, Set Passwords, Fix Ownership
 
 ```bash
-nixos-install --no-root-passwd --flake /mnt/home/bigl/dotfiles#nixos
+nixos-install --no-root-passwd --flake /mnt/home/user/dotfiles#nixos
 
 nixos-enter --root /mnt -c 'passwd root'
-nixos-enter --root /mnt -c 'passwd bigl'
-nixos-enter --root /mnt -c 'chown bigl:users /home/bigl && chmod 700 /home/bigl && chown -R bigl:users /home/bigl/dotfiles'
+nixos-enter --root /mnt -c 'passwd user'
+nixos-enter --root /mnt -c 'chown user:users /home/user && chmod 700 /home/user && chown -R user:users /home/user/dotfiles'
 
 reboot
 ```
@@ -132,8 +132,8 @@ There is no default password: without the `passwd` steps nobody can log in.
 ### Rebuilding and Updating
 
 ```bash
-rebuild        # sudo nixos-rebuild switch --flake /home/bigl/dotfiles#nixos
-update-flake   # cd /home/bigl/dotfiles && nix flake update
+rebuild        # sudo nixos-rebuild switch --flake /home/user/dotfiles#nixos
+update-flake   # cd /home/user/dotfiles && nix flake update
 ```
 
 ### Desktop Settings
@@ -153,7 +153,7 @@ Browser policies (search engine, bookmarks, HTTPS-only, Bitwarden) are set in `c
 
 ### SSH
 
-The SSH server only accepts public keys (no passwords, no root login). Add the public keys that may log in to `users.users.bigl.openssh.authorizedKeys.keys` in `configuration.nix`. Never commit private keys. For connections from this machine, create a key with `ssh-keygen -t ed25519`.
+The SSH server only accepts public keys (no passwords, no root login). Add the public keys that may log in to `users.users.${username}.openssh.authorizedKeys.keys` in `configuration.nix`. Never commit private keys. For connections from this machine, create a key with `ssh-keygen -t ed25519`.
 
 ### School Storage (HTL MEDT)
 
