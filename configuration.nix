@@ -275,6 +275,21 @@
     };
   };
 
+  # iPhone/iPad over USB: usbmuxd is the service iLoader talks to the device through
+  services.usbmuxd.enable = true;
+
+  # Open iLoader when an iPhone or iPad is plugged in. The product ID range
+  # 05ac:12[9a]x is the iOS device range from usbmuxd's own udev rules; Macs use
+  # other IDs (190x, 8600) and are ignored. The device asks the user's systemd
+  # instance for the service; an already open iLoader is not started twice.
+  services.udev.extraRules = ''
+    ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", TAG+="systemd", ENV{SYSTEMD_USER_WANTS}+="iloader-autostart.service"
+  '';
+  systemd.user.services.iloader-autostart = {
+    description = "Open iLoader for a connected iPhone or iPad";
+    serviceConfig.ExecStart = lib.getExe pkgs.iloader;
+  };
+
   # Blip file transfer (flake input "blip"); starts in the background at login
   programs.blip.enable = true;
 
@@ -354,6 +369,10 @@
     # Browser (Helium comes from programs.helium) & communication
     ladybird
     teams-for-linux
+    # Coding agents (official desktop app, see t3code.nix)
+    (callPackage ./t3code.nix { })
+    # Sideloading apps onto iPhone/iPad (opens automatically, see below)
+    iloader
     bluez
     bluez-tools
     git
