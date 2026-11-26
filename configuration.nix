@@ -312,6 +312,16 @@
 
   # Nix settings, automatic GC and store deduplication
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+  # At most 4 compiler threads in total (one build at a time, 4 cores each).
+  # The default (one build per CPU thread, each using every thread) let up to
+  # 16 compilers run while KOS was rebuilt, filled the 8 GiB RAM and froze the
+  # desktop. Downloads are not limited by this (max-substitution-jobs).
+  nix.settings.max-jobs = 1;
+  nix.settings.cores = 4;
+  # Builds only get CPU time and disk I/O the desktop does not need
+  nix.daemonCPUSchedPolicy = "idle";
+  nix.daemonIOSchedClass = "idle";
   nix.optimise.automatic = true;
   nix.gc = {
     automatic = true;

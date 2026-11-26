@@ -255,9 +255,10 @@ git -C "$DOTFILES_DIR" config --global --add safe.directory "*" 2>/dev/null || t
 echo "=========================================================="
 echo "    Running nixos-install (--flake .#$FLAKE_TARGET)...   "
 echo "=========================================================="
-# At most 4 cores per build: compiling with all cores ran out of memory and
-# crashed the live installer on a laptop with 8 GiB RAM.
-nixos-install --no-root-passwd --flake "$DOTFILES_DIR#$FLAKE_TARGET" --max-jobs auto --cores 4
+# At most 4 compiler threads in total (one build at a time, 4 cores each), the
+# same limit as nix.settings in configuration.nix: more parallel compilers ran
+# out of memory on a laptop with 8 GiB RAM. Downloads still run in parallel.
+nixos-install --no-root-passwd --flake "$DOTFILES_DIR#$FLAKE_TARGET" --max-jobs 1 --cores 4
 
 echo ""
 echo "=========================================================="
