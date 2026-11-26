@@ -91,6 +91,10 @@
   services.displayManager.sddm.enable = true;
   services.desktopManager.plasma6.enable = true;
 
+  # KDE Wallet is disabled (plasma.nix): do not try to unlock it at login
+  security.pam.services.login.kwallet.enable = lib.mkForce false;
+  security.pam.services.kde.kwallet.enable = lib.mkForce false;
+
   # Exclude default bloated KDE applications
   environment.plasma6.excludePackages = with pkgs.kdePackages; [
     elisa
@@ -218,7 +222,12 @@
       upstream.overrideAttrs (old: {
         preFixup = lib.replaceStrings [ brokenFlag ] [ "" ] old.preFixup;
       });
-    flags = [ "--ozone-platform-hint=auto" ];
+    flags = [
+      "--ozone-platform-hint=auto"
+      # Keep the cookie/login encryption key out of KDE Wallet (disabled in
+      # plasma.nix): a pending wallet unlock prompt blocked every page load
+      "--password-store=basic"
+    ];
 
     # Chromium enterprise policies: https://chromeenterprise.google/policies/
     policies = {

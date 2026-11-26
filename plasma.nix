@@ -310,6 +310,9 @@
       kdeglobals.WM.inactiveBackground = "239,240,241";
       kdeglobals.WM.inactiveBlend = "239,240,241";
       kdeglobals.WM.inactiveForeground = "112,125,138";
+      # KDE Wallet is not used: secrets live in Bitwarden, Helium uses
+      # --password-store=basic, and there are no saved Wi-Fi/VPN passwords
+      kwalletrc.Wallet.Enabled = false;
       kwalletrc.Wallet."First Use" = false;
       kwinrc.Desktops.Id_1 = "0089913f-0d49-4e28-9266-af29d4163044";
       kwinrc.Desktops.Id_2 = "aec7ec3a-ad66-4a3e-831f-375dd8ded1d8";
