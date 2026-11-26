@@ -48,13 +48,6 @@
 
     cp -rf ${./dotfiles/kos}/* "$HOME/.config/kos/"
     chmod -R u+rwX "$HOME/.config/kos"
-
-    # Seed initial Gemini config only if not yet present (Antigravity modifies this at runtime)
-    mkdir -p "$HOME/.gemini/config"
-    if [ ! -e "$HOME/.gemini/config/config.json" ]; then
-      cp ${./dotfiles/gemini/config.json} "$HOME/.gemini/config/config.json"
-      chmod 600 "$HOME/.gemini/config/config.json"
-    fi
   '';
 
   # Bash shell integration & aliases

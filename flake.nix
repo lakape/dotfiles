@@ -16,6 +16,14 @@
       url = "path:./nextkde";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    helium = {
+      url = "github:oxcl/nix-flake-helium-browser";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    blip = {
+      url = "github:blip-net/nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = { self, nixpkgs, home-manager, plasma-manager, nextkde, ... }@inputs: {
@@ -26,6 +34,8 @@
         modules = [
           ./configuration.nix
           nextkde.nixosModules.kos
+          inputs.helium.nixosModules.default
+          inputs.blip.nixosModules.default
           home-manager.nixosModules.home-manager
           {
             home-manager.useGlobalPkgs = true;

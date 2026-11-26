@@ -158,42 +158,6 @@ mkdir -p /mnt/home/bigl
 cp -r "$DOTFILES_DIR" "/mnt/home/bigl/dotfiles"
 nixos-enter --root /mnt -c 'chown -R bigl:users /home/bigl/dotfiles' 2>/dev/null || true
 
-echo ""
-echo "=========================================================="
-echo "    Pre-installing latest uBlock Origin for Chromium...  "
-echo "=========================================================="
-EXT_DIR="/mnt/home/bigl/.local/share/ungoogled-chromium/extensions"
-EXT_JSON_DIR="/mnt/home/bigl/.config/chromium/External Extensions"
-mkdir -p "$EXT_DIR" "$EXT_JSON_DIR"
-
-python3 - << 'PYEOF' || true
-import urllib.request, xml.etree.ElementTree as ET, json, os, sys
-
-try:
-    url = "https://raw.githubusercontent.com/gorhill/uBlock/master/dist/chromium/update.xml"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=15) as r:
-        tree = ET.fromstring(r.read())
-    for app in tree.iter("{http://www.google.com/update2/response}app"):
-        if app.attrib.get("appid") == "fkgkibajhfbepljeaefdnfnegdcjomkh":
-            for uc in app.iter("{http://www.google.com/update2/response}updatecheck"):
-                version = uc.attrib.get("version")
-                codebase = uc.attrib.get("codebase")
-                print(f"Fetching uBlock Origin {version}...")
-                crx_file = "/mnt/home/bigl/.local/share/ungoogled-chromium/extensions/ublock.crx"
-                json_file = "/mnt/home/bigl/.config/chromium/External Extensions/fkgkibajhfbepljeaefdnfnegdcjomkh.json"
-                req_dl = urllib.request.Request(codebase, headers={"User-Agent": "Mozilla/5.0"})
-                with urllib.request.urlopen(req_dl, timeout=30) as resp, open(crx_file, "wb") as f:
-                    f.write(resp.read())
-                with open(json_file, "w") as f:
-                    json.dump({"external_crx": "/home/bigl/.local/share/ungoogled-chromium/extensions/ublock.crx", "external_version": version}, f, indent=2)
-                print(f"uBlock Origin {version} installed successfully.")
-except Exception as e:
-    print(f"Notice: Could not fetch latest release dynamically ({e}). System baseline will be used.", file=sys.stderr)
-PYEOF
-
-nixos-enter --root /mnt -c 'chown -R bigl:users /home/bigl/.local /home/bigl/.config' 2>/dev/null || true
-
 echo "=========================================================="
 echo "    Installation completed successfully.                  "
 echo "    You can now reboot into your new system with: reboot  "

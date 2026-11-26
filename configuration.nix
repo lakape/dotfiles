@@ -3,64 +3,6 @@
 
 { config, pkgs, lib, ... }:
 
-let
-  # Antigravity IDE (Official Google Deepmind build, 100% reproducible)
-  antigravity = pkgs.stdenv.mkDerivation rec {
-    pname = "antigravity";
-    version = "2.32.0";
-    src = pkgs.fetchurl {
-      url = "https://storage.googleapis.com/antigravity-public/antigravity-hub/2.32.0-6141816156848128/linux-x64/Antigravity.tar.gz";
-      hash = "sha256-2YoTcfK9TKfdLn7ujzLqBwVDoeDkXGl2H3ANZ0VPQnU=";
-    };
-    sourceRoot = ".";
-    dontBuild = true;
-    dontConfigure = true;
-    dontStrip = true;
-    dontPatchELF = true;
-    nativeBuildInputs = [ pkgs.python3 ];
-
-    installPhase = ''
-      mkdir -p $out/opt/antigravity $out/bin $out/share/applications $out/share/icons/hicolor/512x512/apps
-      cp -r Antigravity-x64/* $out/opt/antigravity/
-
-      # Patch Antigravity app.asar to enable setTitleBarOverlay on Linux (removes hardcoded Windows-only check)
-      python3 -c "
-p = '$out/opt/antigravity/resources/app.asar'
-data = open(p, 'rb').read()
-old = b\"win && process.platform === 'win32'\"
-new = b\"win && process.platform != 'darwin'\"
-assert old in data, 'target pattern not found in app.asar'
-open(p, 'wb').write(data.replace(old, new, 1))
-"
-
-      cat << 'WRAPPER' > $out/bin/antigravity
-#!/bin/sh
-if [ -z "$DISPLAY" ] && [ -n "$WAYLAND_DISPLAY" ]; then
-  exec "$out/opt/antigravity/antigravity" --ozone-platform=wayland "$@"
-else
-  exec "$out/opt/antigravity/antigravity" --ozone-platform-hint=auto "$@"
-fi
-WRAPPER
-      substituteInPlace $out/bin/antigravity --replace-fail '$out' "$out"
-      chmod +x $out/bin/antigravity
-
-      cp ${./dotfiles/icons/antigravity.png} $out/share/icons/hicolor/512x512/apps/antigravity.png
-      cp ${./dotfiles/icons/antigravity.png} $out/opt/antigravity/antigravity.png
-      cp ${./dotfiles/applications/antigravity.desktop} $out/share/applications/antigravity.desktop
-    '';
-  };
-
-  # uBlock Origin extension for Chromium (100% declarative & installed from start)
-  ublock-version = "1.76.2";
-  ublock-crx = pkgs.fetchurl {
-    url = "https://github.com/gorhill/uBlock/releases/download/${ublock-version}/uBlock0_${ublock-version}.chromium.crx";
-    hash = "sha256-pcE3pXCSDHO5pdD01HeJQK/UWl1JUxDIiQNeaV0WWtk=";
-  };
-  ublock-manifest = pkgs.writeText "fkgkibajhfbepljeaefdnfnegdcjomkh.json" (builtins.toJSON {
-    external_crx = "${ublock-crx}";
-    external_version = ublock-version;
-  });
-in
 {
   imports = [
     ./hardware-configuration.nix
@@ -209,7 +151,7 @@ in
     };
   };
 
-  # Wayland Native support for Chromium and Electron apps
+  # Native Wayland for Chromium-based browsers (Helium) and Electron apps
   environment.sessionVariables = {
     NIXOS_OZONE_WL = "1";
   };
@@ -222,7 +164,7 @@ in
     extraGroups = [ "networkmanager" "wheel" "unifi-endpoint" ];
   };
 
-  # Dynamic Linker for precompiled binaries (Antigravity IDE, etc.)
+  # Dynamic linker for precompiled binaries (e.g. npm packages shipping native binaries)
   programs.nix-ld.enable = true;
   programs.nix-ld.libraries = with pkgs; [
     stdenv.cc.cc
@@ -259,6 +201,12 @@ in
   programs.google-chrome.enable = false;
   programs.steam.enable = false;
 
+  # Helium browser (flake input "helium"): Chromium-based, ships uBlock Origin built in
+  programs.helium.enable = true;
+
+  # Blip file transfer (flake input "blip"); starts in the background at login
+  programs.blip.enable = true;
+
   # UniFi Identity Endpoint (version 1.1.7)
   programs.unifi-endpoint = {
     enable = true;
@@ -271,29 +219,14 @@ in
     });
   };
 
-  # Browser symlinks & declarative system-wide extension seeding
+  # Some prebuilt tools expect readlink and which in /usr/bin
   systemd.tmpfiles.rules = [
-    "L+ /opt/google/chrome/chrome - - - - ${pkgs.ungoogled-chromium}/bin/chromium"
-    "L+ /usr/bin/google-chrome - - - - ${pkgs.ungoogled-chromium}/bin/chromium"
-    "L+ /usr/bin/google-chrome-stable - - - - ${pkgs.ungoogled-chromium}/bin/chromium"
-    "L+ /usr/bin/chromium - - - - ${pkgs.ungoogled-chromium}/bin/chromium"
-    "L+ /usr/bin/chromium-browser - - - - ${pkgs.ungoogled-chromium}/bin/chromium"
-    "L+ /usr/bin/ungoogled-chromium - - - - ${pkgs.ungoogled-chromium}/bin/chromium"
     "L+ /usr/bin/readlink - - - - ${pkgs.coreutils}/bin/readlink"
     "L+ /usr/bin/which - - - - ${pkgs.which}/bin/which"
-    # System-wide Chromium extension fallback
-    "d /usr/share/chromium 0755 root root -"
-    "d /usr/share/chromium/extensions 0755 root root -"
-    "C /usr/share/chromium/extensions/fkgkibajhfbepljeaefdnfnegdcjomkh.json 0644 root root - ${ublock-manifest}"
   ];
 
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
-
-  # Ensure Chromium runs natively on Wayland with crisp scaling
-  nixpkgs.config.chromium = {
-    commandLineArgs = "--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations";
-  };
 
   # Overlays (KWalletManager removal, wireguard-tools PATH fix)
   nixpkgs.overlays = [
@@ -337,8 +270,9 @@ in
     openssl
     kdePackages.kdialog
     cifs-utils
-    antigravity
-    ungoogled-chromium
+    # Browser (Helium comes from programs.helium) & communication
+    ladybird
+    teams-for-linux
     bluez
     bluez-tools
     git
@@ -350,6 +284,7 @@ in
     # Development tools
     python3
     nodejs
+    claude-code
     pnpm
     postgresql
     podman-compose
@@ -371,84 +306,6 @@ in
 
   # OpenSSH daemon
   services.openssh.enable = true;
-
-  # Automatically update and install uBlock Origin for ungoogled-chromium
-  systemd.user.services.update-ublock = {
-    description = "Automatically update uBlock Origin for ungoogled-chromium";
-    after = [ "network-online.target" ];
-    wants = [ "network-online.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = "${pkgs.writeShellScript "update-ublock" ''
-        ${pkgs.python3}/bin/python3 - << 'PYEOF'
-import json, os, sys, tempfile, urllib.request, xml.etree.ElementTree as ET
-
-UPDATE_XML_URL = "https://raw.githubusercontent.com/gorhill/uBlock/master/dist/chromium/update.xml"
-EXT_DIR = os.path.expanduser("~/.local/share/ungoogled-chromium/extensions")
-EXT_JSON_DIR = os.path.expanduser("~/.config/chromium/External Extensions")
-CRX_FILE = os.path.join(EXT_DIR, "ublock.crx")
-JSON_FILE = os.path.join(EXT_JSON_DIR, "fkgkibajhfbepljeaefdnfnegdcjomkh.json")
-
-def get_latest_version_info():
-    req = urllib.request.Request(UPDATE_XML_URL, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        xml_data = resp.read()
-    tree = ET.fromstring(xml_data)
-    for app in tree.iter("{http://www.google.com/update2/response}app"):
-        if app.attrib.get("appid") == "fkgkibajhfbepljeaefdnfnegdcjomkh":
-            for uc in app.iter("{http://www.google.com/update2/response}updatecheck"):
-                return uc.attrib.get("version"), uc.attrib.get("codebase")
-    raise RuntimeError("uBlock appid not found in update.xml")
-
-def main():
-    os.makedirs(EXT_DIR, exist_ok=True)
-    os.makedirs(EXT_JSON_DIR, exist_ok=True)
-    try:
-        latest_ver, download_url = get_latest_version_info()
-    except Exception as e:
-        print(f"Error checking update: {e}", file=sys.stderr)
-        return 0
-
-    current_ver = None
-    if os.path.exists(JSON_FILE) and os.path.exists(CRX_FILE):
-        try:
-            with open(JSON_FILE, "r") as f:
-                current_ver = json.load(f).get("external_version")
-        except Exception:
-            pass
-
-    if current_ver == latest_ver and os.path.exists(CRX_FILE):
-        return 0
-
-    print(f"Updating uBlock Origin to {latest_ver}...")
-    try:
-        req = urllib.request.Request(download_url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=30) as resp, tempfile.NamedTemporaryFile(dir=EXT_DIR, delete=False) as tmp:
-            tmp.write(resp.read())
-            tmp_path = tmp.name
-        os.replace(tmp_path, CRX_FILE)
-        with open(JSON_FILE, "w") as f:
-            json.dump({"external_crx": CRX_FILE, "external_version": latest_ver}, f, indent=2)
-        print("Updated successfully.")
-    except Exception as e:
-        print(f"Failed to update uBlock: {e}", file=sys.stderr)
-
-if __name__ == "__main__":
-    main()
-PYEOF
-      ''}";
-    };
-  };
-
-  systemd.user.timers.update-ublock = {
-    description = "Check for uBlock Origin updates daily";
-    wantedBy = [ "timers.target" ];
-    timerConfig = {
-      OnStartupSec = "30s";
-      OnCalendar = "daily";
-      Persistent = true;
-    };
-  };
 
   system.stateVersion = "26.11";
 }

@@ -11,7 +11,7 @@ The setup is consolidated into a single configuration file (`configuration.nix`)
 - **Graphics:** `videoDrivers = [ "nvidia" "modesetting" ]`. Machines with an NVIDIA GPU automatically load the proprietary driver with PRIME offload. Machines without an NVIDIA GPU (Intel/AMD laptops, virtual machines) cleanly fall back to kernel modesetting via Mesa.
 - **Architecture:** x86_64 UEFI.
 - **Storage footprint:** ~13–14 GiB initial disk footprint post-installation. A minimum disk partition of 50 GiB is recommended for ongoing generations, build caches, and user data.
-- **Integrated tooling:** Antigravity IDE (official Google release, Wayland-native), Ungoogled Chromium, PipeWire audio, Podman container engine, Node.js, Python 3, PostgreSQL, Apple SF-Pro typography.
+- **Integrated tooling:** Helium browser (built-in uBlock Origin), Ladybird browser, Teams for Linux, Blip file transfer, PipeWire audio, Podman container engine, Node.js, Python 3, PostgreSQL, Apple SF-Pro typography.
 
 ---
 
@@ -183,7 +183,6 @@ sudo nix-store --optimise
 ├── hardware-configuration.nix # Target machine hardware scan
 ├── dotfiles/                  # Declaratively linked configuration assets
 │   ├── applications/          # Desktop entry overrides
-│   ├── icons/                 # Application icons (Antigravity 512x512)
 │   ├── kde/                   # kwinrc, kglobalshortcutsrc, kdeglobals
 │   ├── kos/                   # Window appearance and button schemas
 │   ├── quickshell-kos/        # Initial quickshell state (dock, pinned apps)

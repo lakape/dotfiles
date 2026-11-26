@@ -27,9 +27,6 @@ fi
 
 if [ -d "${REPO_DIR}/dotfiles/applications" ]; then
     mkdir -p "$HOME/.local/share/applications"
-    if [ ! -f "$HOME/.local/opt/antigravity/Antigravity-x64/antigravity" ]; then
-        rm -f "$HOME/.local/share/applications/antigravity.desktop"
-    fi
     cp "${REPO_DIR}/dotfiles/applications"/* "$HOME/.local/share/applications/" 2>/dev/null || true
     echo "✓ Synced ~/.local/share/applications/*"
 fi

@@ -133,7 +133,7 @@ ForegroundPositive=39,174,96
 ForegroundVisited=155,89,182
 
 [General]
-BrowserApplication=chromium-browser.desktop
+BrowserApplication=helium.desktop
 ColorScheme=BreezeLight
 ColorSchemeHash=9980f09638f2f885144ced7c6086ae56addf7c8c
 

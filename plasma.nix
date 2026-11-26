@@ -279,7 +279,14 @@
       kactivitymanagerdrc."Plugin-org.kde.ActivityManager.Resources.Scoring".what-to-remember = 0;
       kactivitymanagerdrc.activities.ba6725b0-9be1-4edb-beda-d929c6ead10d = "Default";
       kded5rc.Module-device_automounter.autoload = false;
-      kdeglobals.General.BrowserApplication = "chromium-browser.desktop";
+      kdeglobals.General.BrowserApplication = "helium.desktop";
+      # Default browser for links (file stays writable, plasma-manager only sets these keys)
+      "mimeapps.list"."Default Applications"."text/html" = "helium.desktop";
+      "mimeapps.list"."Default Applications"."x-scheme-handler/http" = "helium.desktop";
+      "mimeapps.list"."Default Applications"."x-scheme-handler/https" = "helium.desktop";
+      "mimeapps.list"."Added Associations"."text/html" = "helium.desktop";
+      "mimeapps.list"."Added Associations"."x-scheme-handler/http" = "helium.desktop";
+      "mimeapps.list"."Added Associations"."x-scheme-handler/https" = "helium.desktop";
       kdeglobals.KDE.contrast = 4;
       kdeglobals.KDE.frameContrast = 0.2;
       kdeglobals."KFileDialog Settings"."Allow Expansion" = false;

@@ -1,5 +1,45 @@
 {
   "nodes": {
+    "blip": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1793408108,
+        "narHash": "sha256-TbGJBPTQgjJBd7bTjnx2cdPwHs7xhhDxsPiMl5cJ1p8=",
+        "owner": "blip-net",
+        "repo": "nix",
+        "rev": "8139dec7dd3be72ae5caefad69cc9eacd832fc99",
+        "type": "github"
+      },
+      "original": {
+        "owner": "blip-net",
+        "repo": "nix",
+        "type": "github"
+      }
+    },
+    "helium": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1795631174,
+        "narHash": "sha256-cAJyi5Bzj0NmeG0Li2VvLFcAsM0Wf7VBHjCX+kj/nvY=",
+        "owner": "oxcl",
+        "repo": "nix-flake-helium-browser",
+        "rev": "5ffc9e7498b8d893fa33122bb994249a723e788b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxcl",
+        "repo": "nix-flake-helium-browser",
+        "type": "github"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -77,6 +117,8 @@
     },
     "root": {
       "inputs": {
+        "blip": "blip",
+        "helium": "helium",
         "home-manager": "home-manager",
         "nextkde": "nextkde",
         "nixpkgs": "nixpkgs",

@@ -34,9 +34,7 @@ fi
 # 4. Hidden applications overrides
 if [ -d "$HOME/.local/share/applications" ]; then
     cp -r "$HOME/.local/share/applications"/* "${REPO_DIR}/dotfiles/applications/" 2>/dev/null || true
-    # Don't bundle uninstalled third-party app shortcuts into fresh system dotfiles
-    rm -f "${REPO_DIR}/dotfiles/applications/antigravity.desktop"
-    echo "✓ Copied ~/.local/share/applications/* (excluding custom app binaries)"
+    echo "✓ Copied ~/.local/share/applications/*"
 fi
 
 # 5. KOS shell & dock state (Quickshell state)
