@@ -26,9 +26,7 @@
   "rootItems": [],
   "hiddenAppIds": [
     "kos-weather",
-    "org.kde.khelpcenter",
     "org.kde.kinfocenter",
-    "kos-settings",
     "kdesystemsettings",
     "kdesystemsettings.desktop",
     "cups",

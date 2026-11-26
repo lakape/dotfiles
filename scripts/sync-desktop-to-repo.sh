@@ -1,57 +1,31 @@
 #!/usr/bin/env bash
+# Copies the live KOS desktop state back into the repository, so changes made
+# in the GUI (dock pins, tray order, launcher, appearance, window settings)
+# become the defaults for new installations (see home.nix: seedKosConfigs).
+#
+# Only files that already exist in the repository are updated, so runtime
+# caches never end up in git. KDE Plasma settings are declared in plasma.nix;
+# to turn current KDE settings into Nix code run:
+#   nix run github:nix-community/plasma-manager#rc2nix
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-echo "=== Syncing current active Desktop & KOS settings into repository ==="
-mkdir -p "${REPO_DIR}/dotfiles/kde" \
-         "${REPO_DIR}/dotfiles/kos" \
-         "${REPO_DIR}/dotfiles/applications" \
-         "${REPO_DIR}/dotfiles/quickshell-kos" \
-         "${REPO_DIR}/dotfiles/kos-share/gallery" \
-         "${REPO_DIR}/dotfiles/wallpapers"
+# Usage: sync_tracked <live dir> <repository dir>
+sync_tracked() {
+    local live="$1" repo="$2" file rel
+    while IFS= read -r -d '' file; do
+        rel="${file#"$repo"/}"
+        if [ -f "$live/$rel" ] && ! cmp -s "$live/$rel" "$file"; then
+            cp "$live/$rel" "$file"
+            echo "✓ Updated ${file#"$REPO_DIR"/}"
+        fi
+    done < <(find "$repo" -type f -print0)
+}
 
-# 1. KDE configs
-for f in kwinrc kglobalshortcutsrc kdeglobals kactivitymanagerdrc plasmashellrc; do
-    if [ -f "$HOME/.config/$f" ]; then
-        cp "$HOME/.config/$f" "${REPO_DIR}/dotfiles/kde/"
-        echo "✓ Copied ~/.config/$f"
-    fi
-done
+echo "=== Syncing live KOS desktop state into the repository ==="
+sync_tracked "$HOME/.local/state/quickshell/kos" "$REPO_DIR/dotfiles/quickshell-kos"
+sync_tracked "$HOME/.config/kos" "$REPO_DIR/dotfiles/kos"
+sync_tracked "$HOME/.local/share/kos/gallery" "$REPO_DIR/dotfiles/kos-share/gallery"
 
-# 2. Desktop appletsrc (wallpaper & panel layout)
-if [ -f "$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc" ]; then
-    cp "$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc" "${REPO_DIR}/dotfiles/kde/"
-    echo "✓ Copied ~/.config/plasma-org.kde.plasma.desktop-appletsrc"
-fi
-
-# 3. KOS JSON configs
-if [ -d "$HOME/.config/kos" ]; then
-    cp "$HOME/.config/kos"/*.json "${REPO_DIR}/dotfiles/kos/" 2>/dev/null || true
-    echo "✓ Copied ~/.config/kos/*.json"
-fi
-
-# 4. Hidden applications overrides
-if [ -d "$HOME/.local/share/applications" ]; then
-    cp -r "$HOME/.local/share/applications"/* "${REPO_DIR}/dotfiles/applications/" 2>/dev/null || true
-    echo "✓ Copied ~/.local/share/applications/*"
-fi
-
-# 5. KOS shell & dock state (Quickshell state)
-if [ -d "$HOME/.local/state/quickshell/kos" ]; then
-    cp -r "$HOME/.local/state/quickshell/kos"/* "${REPO_DIR}/dotfiles/quickshell-kos/" 2>/dev/null || true
-    echo "✓ Copied ~/.local/state/quickshell/kos/*"
-fi
-
-# 5. Wallpapers & gallery
-if [ -f "$HOME/.local/share/kos/gallery/wallpaper.jpg" ]; then
-    cp "$HOME/.local/share/kos/gallery/wallpaper.jpg" "${REPO_DIR}/dotfiles/kos-share/gallery/"
-    echo "✓ Copied ~/.local/share/kos/gallery/wallpaper.jpg"
-fi
-
-if [ -d "$HOME/.local/share/wallpapers" ]; then
-    cp -r "$HOME/.local/share/wallpapers"/* "${REPO_DIR}/dotfiles/wallpapers/" 2>/dev/null || true
-    echo "✓ Copied ~/.local/share/wallpapers/*"
-fi
-
-echo "Done! You can now review changes with 'git diff' and commit them."
+echo "Done. Review the changes with: git -C \"$REPO_DIR\" diff"

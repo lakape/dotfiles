@@ -69,6 +69,19 @@ add_nvidia_settings() {
 }
 # END gpu-detection
 
+# Prompts go to the terminal. Unattended runs (no terminal, CI=1 or AUTOMATED set)
+# skip all prompts and must provide USER_PASSWORD (used for root and bigl);
+# there is no built-in default password.
+if { : < /dev/tty; } 2>/dev/null && [ "${CI:-}" != "1" ] && [ -z "${AUTOMATED:-}" ]; then
+    INTERACTIVE=1
+else
+    INTERACTIVE=0
+    if [ -z "${USER_PASSWORD:-}" ]; then
+        echo "Error: Unattended installation requires USER_PASSWORD to be set."
+        exit 1
+    fi
+fi
+
 if [ -z "$TARGET_DISK" ]; then
     mapfile -t DISKS < <(lsblk -d -n -o NAME,TYPE | awk '$2=="disk" && $1 !~ /^(fd|loop|sr|ram|zram)/ {print $1}')
 
@@ -97,7 +110,7 @@ if [ -z "$TARGET_DISK" ]; then
         fi
     done
 
-    if [ -e /dev/tty ]; then
+    if [ "$INTERACTIVE" = 1 ]; then
         read -r -p "Target disk [Default: ${DEFAULT_DISK}]: " USER_INPUT < /dev/tty || USER_INPUT=""
         TARGET_DISK="${USER_INPUT:-$DEFAULT_DISK}"
     else
@@ -118,7 +131,7 @@ RAM_GIB=$(awk '/^MemTotal:/ { printf "%d", ($2 + 1048575) / 1048576 }' /proc/mem
 SWAP_GIB=$(awk -v r="$RAM_GIB" 'BEGIN { s = sqrt(r); printf "%d", r + ((s == int(s)) ? s : int(s) + 1) }')
 if [ -n "${SWAP_SIZE_GIB:-}" ]; then
     SWAP_GIB="$SWAP_SIZE_GIB"
-elif [ -e /dev/tty ]; then
+elif [ "$INTERACTIVE" = 1 ]; then
     read -r -p "Swap partition size in GiB (RAM: ${RAM_GIB} GiB) [Default: ${SWAP_GIB}]: " SWAP_INPUT < /dev/tty || SWAP_INPUT=""
     SWAP_GIB="${SWAP_INPUT:-$SWAP_GIB}"
 fi
@@ -138,7 +151,7 @@ if [ $(( DISK_GIB - SWAP_GIB - 1 )) -lt "$MIN_ROOT_GIB" ]; then
 fi
 echo "Partition layout: 512 MiB EFI | ~$(( DISK_GIB - SWAP_GIB - 1 )) GiB Btrfs root | ${SWAP_GIB} GiB swap"
 
-if [ -e /dev/tty ]; then
+if [ "$INTERACTIVE" = 1 ]; then
     echo ""
     echo "WARNING: All existing data on '$TARGET_DISK' will be permanently erased!"
     read -r -p "Are you sure you want to proceed? (y/N): " CONFIRM < /dev/tty || CONFIRM="n"
@@ -232,17 +245,19 @@ echo ""
 echo "=========================================================="
 echo "    Setting passwords for users 'root' and 'bigl'...      "
 echo "=========================================================="
-DEFAULT_PASSWORD="${USER_PASSWORD:-975159}"
-if [ -t 0 ] && [ -e /dev/tty ] && [ "${CI:-}" != "1" ] && [ -z "${AUTOMATED:-}" ]; then
-    echo "Setting root password:"
-    nixos-enter --root /mnt -c 'passwd root' < /dev/tty || echo "root:$DEFAULT_PASSWORD" | nixos-enter --root /mnt -c 'chpasswd'
-    echo "Setting bigl password:"
-    nixos-enter --root /mnt -c 'passwd bigl' < /dev/tty || echo "bigl:$DEFAULT_PASSWORD" | nixos-enter --root /mnt -c 'chpasswd'
-else
-    echo "Setting root and bigl passwords non-interactively..."
-    echo "root:$DEFAULT_PASSWORD" | nixos-enter --root /mnt -c 'chpasswd'
-    echo "bigl:$DEFAULT_PASSWORD" | nixos-enter --root /mnt -c 'chpasswd'
-fi
+set_password() {
+    local user="$1"
+    if [ "$INTERACTIVE" = 1 ]; then
+        echo "Setting password for '$user':"
+        until nixos-enter --root /mnt -c "passwd $user" < /dev/tty; do
+            echo "The password was not set, please try again."
+        done
+    else
+        printf '%s:%s\n' "$user" "$USER_PASSWORD" | nixos-enter --root /mnt -c 'chpasswd'
+    fi
+}
+set_password root
+set_password bigl
 
 echo ""
 echo "=========================================================="

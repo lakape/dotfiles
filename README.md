@@ -39,7 +39,7 @@ curl -sL https://raw.githubusercontent.com/lakape/dotfiles/master/scripts/instal
 5. Runs `nixos-generate-config --root /mnt` to capture local hardware parameters, including the swap partition.
 6. Clones this repository into `/mnt/etc/dotfiles`, copies the generated `hardware-configuration.nix` and, if an NVIDIA GPU is present, adds the `dotfiles.nvidia` settings to it.
 7. Builds and installs the system via `nixos-install --no-root-passwd --flake /mnt/etc/dotfiles#nixos`.
-8. Prompts to set passwords for both `root` and the primary user `bigl` via `nixos-enter`.
+8. Prompts for the passwords of `root` and the primary user `bigl` via `nixos-enter` (there is no default password; unattended runs must set `USER_PASSWORD`).
 
 Once complete, reboot into the installed system:
 
@@ -115,7 +115,7 @@ nixos-enter --root /mnt -c 'passwd root'
 nixos-enter --root /mnt -c 'passwd bigl'
 ```
 
-*(Note: `configuration.nix` includes an `initialPassword = "password"` fallback for `bigl` so you are never locked out if user creation is unattended, but setting personal passwords here is recommended).*
+*(Note: there is no default password. Without this step neither `root` nor `bigl` can log in.)*
 
 ### 7. Reboot
 
@@ -145,18 +145,13 @@ update-flake
 
 ### Desktop Settings Synchronization
 
-GUI configurations (KDE shortcuts, KOS window appearance, buttons, dock state) are tracked in the repository:
-
-- **Export desktop changes to repository:**
+- **KDE Plasma** settings (shortcuts, KWin, default browser) are declared in `plasma.nix` and applied on every rebuild. To turn settings changed in the GUI into Nix code, run `nix run github:nix-community/plasma-manager#rc2nix` and copy the relevant parts into `plasma.nix`.
+- **KOS** state (dock pins, tray order, launcher, appearance, window settings) lives in `dotfiles/quickshell-kos` and `dotfiles/kos`. These files are first-install defaults: a rebuild adds missing files but keeps changes made in the GUI. To make the current state the new default:
   ```bash
   ~/dotfiles/scripts/sync-desktop-to-repo.sh
   cd ~/dotfiles && git commit -am "chore: update desktop preferences" && git push
   ```
-
-- **Apply repository configurations to the active user profile:**
-  ```bash
-  ~/dotfiles/scripts/apply-desktop-from-repo.sh
-  ```
+- **Plasma layout:** `dotfiles/kde/plasma-org.kde.plasma.desktop-appletsrc` is installed before the first login, so Plasma never creates its default bottom panel.
 
 ### Storage Maintenance
 
@@ -181,10 +176,12 @@ sudo nix-store --optimise
 ├── flake.nix                  # Flake entrypoint (targets: 'nixos' and 'default')
 ├── flake.lock                 # Pinned dependencies
 ├── configuration.nix          # Consolidated system specification
+├── nvidia.nix                 # NVIDIA driver, enabled per machine by the installer
+├── home.nix                   # Home Manager: user files, KOS defaults, shell aliases
+├── plasma.nix                 # KDE Plasma settings (plasma-manager)
 ├── hardware-configuration.nix # Target machine hardware scan
 ├── dotfiles/                  # Declaratively linked configuration assets
-│   ├── applications/          # Desktop entry overrides
-│   ├── kde/                   # kwinrc, kglobalshortcutsrc, kdeglobals
+│   ├── kde/                   # Initial Plasma desktop layout (no panels)
 │   ├── kos/                   # Window appearance and button schemas
 │   ├── quickshell-kos/        # Initial quickshell state (dock, pinned apps)
 │   └── wallpapers/            # Desktop backgrounds
@@ -192,6 +189,5 @@ sudo nix-store --optimise
 ├── nextkde/                   # NextKDE / KOS desktop shell source tree
 └── scripts/
     ├── install.sh             # Automated installation script
-    ├── sync-desktop-to-repo.sh    # Captures live desktop settings into repo
-    └── apply-desktop-from-repo.sh # Replaces user configs with repo state
+    └── sync-desktop-to-repo.sh    # Copies live KOS settings back into the repo
 ```

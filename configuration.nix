@@ -87,6 +87,7 @@
     elisa
     gwenview
     kate
+    khelpcenter
     print-manager
   ];
 
@@ -147,8 +148,9 @@
   users.users."bigl" = {
     isNormalUser = true;
     description = "bigl";
-    initialPassword = "password";
     extraGroups = [ "networkmanager" "wheel" "unifi-endpoint" ];
+    # Public keys allowed to log in via SSH (one "ssh-ed25519 AAAA... comment" per entry)
+    openssh.authorizedKeys.keys = [ ];
   };
 
   # Dynamic linker for precompiled binaries (e.g. npm packages shipping native binaries)
@@ -241,9 +243,12 @@
       # Passwords live in a self-hosted Vaultwarden: install the Bitwarden
       # extension automatically (set the server URL once in the extension)
       # and turn off the built-in password manager.
+      # Helium omits the browser version in update requests, so Google's update
+      # server answers "noupdate"; Helium's own extension service (the URL Helium
+      # rewrites store extensions to) serves the download instead.
       # uBlock Origin is already bundled with Helium.
       ExtensionInstallForcelist = [
-        "nngceckbapebfimnlniiiahkandclblb;https://clients2.google.com/service/update2/crx"
+        "nngceckbapebfimnlniiiahkandclblb;https://services.helium.imput.net/ext/"
       ];
       PasswordManagerEnabled = false;
 
@@ -352,8 +357,15 @@
     update-flake = "cd /home/bigl/dotfiles && nix flake update";
   };
 
-  # OpenSSH daemon
-  services.openssh.enable = true;
+  # SSH server: key-based logins only (keys in users.users.bigl.openssh.authorizedKeys)
+  services.openssh = {
+    enable = true;
+    settings = {
+      PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+      PermitRootLogin = "no";
+    };
+  };
 
   system.stateVersion = "26.11";
 }
