@@ -11,11 +11,15 @@
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
+      # Copy only this directory into the store. As a path input of the dotfiles
+      # flake, `self` is a subdirectory of the whole repository's store path, so
+      # any change elsewhere in the repository rebuilt every KOS package.
+      src = builtins.path { path = ./.; name = "nextkde-source"; };
     in
     {
       packages.${system} = let
         kos-desktop = pkgs.callPackage ./packaging/nix/package.nix {
-          src = self;
+          inherit src;
         };
       in {
         inherit kos-desktop;
@@ -173,7 +177,7 @@
 
       # Export source path for other flakes
       lib.${system} = {
-        src = ./.;
+        inherit src;
       };
     };
 }

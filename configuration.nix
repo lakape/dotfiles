@@ -11,7 +11,9 @@
 
   # Bootloader EFI settings
   boot.loader.systemd-boot.enable = true;
-  boot.loader.systemd-boot.configurationLimit = 10;
+  # Keep the EFI partition from filling up: every generation can bring its own
+  # kernel and initrd (the latest kernel is updated often)
+  boot.loader.systemd-boot.configurationLimit = 5;
   boot.loader.efi.canTouchEfiVariables = true;
 
   # Latest Linux kernel
@@ -52,6 +54,13 @@
       "credentials=/etc/nixos/smb-secrets"
     ];
   };
+
+  # Btrfs with transparent zstd compression. The installer creates /, /home and
+  # /nix as Btrfs (sub)volumes; nixos-generate-config does not record mount
+  # options, so they are set here and merged with hardware-configuration.nix.
+  fileSystems."/".options = [ "compress=zstd" ];
+  fileSystems."/home".options = [ "compress=zstd" ];
+  fileSystems."/nix".options = [ "compress=zstd" "noatime" ];
 
   # ZRAM swap for memory efficiency and stability (used first, higher priority)
   zramSwap.enable = true;

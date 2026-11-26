@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Elevate to root if not already
+# Elevate to root. When the script is piped into bash ("curl ... | bash") there
+# is no script file that sudo could run again, so explain the working variant.
 if [ "$EUID" -ne 0 ]; then
-  exec sudo bash "$0" "$@"
+    if [ -f "$0" ]; then
+        exec sudo bash "$0" "$@"
+    fi
+    echo "Error: This script must run as root. Use:"
+    echo "  curl -fsSL https://raw.githubusercontent.com/lakape/dotfiles/master/scripts/install.sh | sudo bash -s -- /dev/<disk>"
+    exit 1
 fi
 
 echo "=========================================================="
@@ -149,7 +155,7 @@ if [ $(( DISK_GIB - SWAP_GIB - 1 )) -lt "$MIN_ROOT_GIB" ]; then
     echo "Error: ${DISK_GIB} GiB disk is too small for ${SWAP_GIB} GiB swap plus a ${MIN_ROOT_GIB} GiB root partition."
     exit 1
 fi
-echo "Partition layout: 512 MiB EFI | ~$(( DISK_GIB - SWAP_GIB - 1 )) GiB Btrfs root | ${SWAP_GIB} GiB swap"
+echo "Partition layout: 1 GiB EFI | ~$(( DISK_GIB - SWAP_GIB - 1 )) GiB Btrfs root | ${SWAP_GIB} GiB swap"
 
 if [ "$INTERACTIVE" = 1 ]; then
     echo ""
@@ -166,12 +172,13 @@ echo "[1/6] Unmounting existing partitions..."
 umount -R /mnt 2>/dev/null || true
 swapoff "${TARGET_DISK}"* 2>/dev/null || true
 
-echo "[2/6] Partitioning '$TARGET_DISK' (GPT: 512MiB EFI, Btrfs root, ${SWAP_GIB}GiB swap)..."
+echo "[2/6] Partitioning '$TARGET_DISK' (GPT: 1GiB EFI, Btrfs root, ${SWAP_GIB}GiB swap)..."
 parted -s "$TARGET_DISK" mklabel gpt
-parted -s "$TARGET_DISK" mkpart ESP fat32 1MiB 512MiB
+# 1 GiB EFI partition: room for several generations of the latest kernel and initrd
+parted -s "$TARGET_DISK" mkpart ESP fat32 1MiB 1025MiB
 parted -s "$TARGET_DISK" set 1 esp on
 # "--" stops option parsing, so the negative end positions (counted from the end of the disk) work
-parted -s "$TARGET_DISK" -- mkpart primary 512MiB "-${SWAP_GIB}GiB"
+parted -s "$TARGET_DISK" -- mkpart primary 1025MiB "-${SWAP_GIB}GiB"
 parted -s "$TARGET_DISK" -- mkpart swap linux-swap "-${SWAP_GIB}GiB" 100%
 
 # Determine partition paths (NVMe: /dev/nvme0n1p1 vs SATA: /dev/sda1 vs VirtIO: /dev/vda1)
@@ -220,7 +227,10 @@ echo "[5/6] Generating hardware configuration for target machine..."
 nixos-generate-config --root /mnt
 
 echo "[6/6] Cloning configuration repository..."
-DOTFILES_DIR="/mnt/etc/dotfiles"
+# The repository lives in the user's home; the system is installed and later
+# rebuilt from there (see the "rebuild" alias in home.nix).
+DOTFILES_DIR="/mnt/home/bigl/dotfiles"
+mkdir -p /mnt/home/bigl
 if [ ! -d "$DOTFILES_DIR" ]; then
     if [ -d "/home/nixos/dotfiles" ]; then
         echo "Copying dotfiles from local system..."
@@ -231,7 +241,13 @@ if [ ! -d "$DOTFILES_DIR" ]; then
 fi
 cp /mnt/etc/nixos/hardware-configuration.nix "$DOTFILES_DIR/hardware-configuration.nix"
 add_nvidia_settings "$DOTFILES_DIR/hardware-configuration.nix"
-git -C "$DOTFILES_DIR" add "$DOTFILES_DIR/hardware-configuration.nix" 2>/dev/null || true
+# The hardware configuration is machine-specific: keep it out of git status and
+# commits. Nix still reads the local file when building the flake.
+git -C "$DOTFILES_DIR" update-index --skip-worktree hardware-configuration.nix
+
+# This system is built from the flake only. Remove the generated default
+# configuration, so a plain `nixos-rebuild` fails instead of building it.
+rm -f /mnt/etc/nixos/configuration.nix
 
 FLAKE_TARGET="nixos"
 git -C "$DOTFILES_DIR" config --global --add safe.directory "*" 2>/dev/null || true
@@ -239,6 +255,8 @@ git -C "$DOTFILES_DIR" config --global --add safe.directory "*" 2>/dev/null || t
 echo "=========================================================="
 echo "    Running nixos-install (--flake .#$FLAKE_TARGET)...   "
 echo "=========================================================="
+# At most 4 cores per build: compiling with all cores ran out of memory and
+# crashed the live installer on a laptop with 8 GiB RAM.
 nixos-install --no-root-passwd --flake "$DOTFILES_DIR#$FLAKE_TARGET" --max-jobs auto --cores 4
 
 echo ""
@@ -259,13 +277,8 @@ set_password() {
 set_password root
 set_password bigl
 
-echo ""
-echo "=========================================================="
-echo "    Provisioning user repository in /home/bigl/dotfiles... "
-echo "=========================================================="
-mkdir -p /mnt/home/bigl
-cp -r "$DOTFILES_DIR" "/mnt/home/bigl/dotfiles"
-nixos-enter --root /mnt -c 'chown -R bigl:users /home/bigl/dotfiles' 2>/dev/null || true
+# The home directory and the repository were created by root before bigl existed
+nixos-enter --root /mnt -c 'chown bigl:users /home/bigl && chmod 700 /home/bigl && chown -R bigl:users /home/bigl/dotfiles'
 
 echo "=========================================================="
 echo "    Installation completed successfully.                  "
