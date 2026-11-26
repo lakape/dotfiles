@@ -6,6 +6,7 @@
 {
   imports = [
     ./hardware-configuration.nix
+    ./filesystems.nix
     ./nvidia.nix
   ];
 
@@ -55,20 +56,11 @@
     ];
   };
 
-  # Btrfs with transparent zstd compression. The installer creates /, /home and
-  # /nix as Btrfs (sub)volumes; nixos-generate-config does not record mount
-  # options, so they are set here and merged with hardware-configuration.nix.
-  fileSystems."/".options = [ "compress=zstd" ];
-  fileSystems."/home".options = [ "compress=zstd" ];
-  fileSystems."/nix".options = [ "compress=zstd" "noatime" ];
+  # File systems (Btrfs with zstd, subvolumes home and nix), the swap partition
+  # and resume from hibernation are declared in filesystems.nix by label.
 
   # ZRAM swap for memory efficiency and stability (used first, higher priority)
   zramSwap.enable = true;
-
-  # Hibernation: scripts/install.sh creates a swap partition sized from the
-  # machine's RAM, and nixos-generate-config lists it in hardware-configuration.nix.
-  # Resume from that partition (zram is never part of swapDevices).
-  boot.resumeDevice = lib.mkIf (config.swapDevices != [ ]) (lib.head config.swapDevices).device;
 
   # Time & Locales
   time.timeZone = "Europe/Vienna";

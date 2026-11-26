@@ -203,6 +203,23 @@ mkfs.fat -F 32 -n boot "$BOOT_PART"
 mkfs.btrfs -f -L nixos "$ROOT_PART"
 mkswap -L swap "$SWAP_PART"
 
+# filesystems.nix mounts the partitions by these labels. Make sure udev has
+# created the links and that no other disk carries the same label, otherwise
+# the installed system could mount the wrong partition or wait for it forever.
+udevadm settle 2>/dev/null || sleep 2
+for label in boot nixos swap; do
+    if [ ! -e "/dev/disk/by-label/$label" ]; then
+        echo "Error: /dev/disk/by-label/$label does not exist after formatting."
+        exit 1
+    fi
+    if [ "$(blkid -c /dev/null -t "LABEL=$label" -o device | wc -l)" -ne 1 ]; then
+        echo "Error: More than one partition has the label '$label':"
+        blkid -c /dev/null -t "LABEL=$label" -o device
+        echo "Remove or relabel the other disk's partition, then run the installer again."
+        exit 1
+    fi
+done
+
 echo "[4/6] Creating Btrfs subvolumes and mounting to /mnt..."
 mount -t btrfs -o compress=zstd "$ROOT_PART" /mnt
 btrfs subvolume create /mnt/home
@@ -213,8 +230,8 @@ mount -t btrfs -o subvol=home,compress=zstd "$ROOT_PART" /mnt/home
 mount -t btrfs -o subvol=nix,compress=zstd,noatime "$ROOT_PART" /mnt/nix
 mount "$BOOT_PART" /mnt/boot
 
-# Active swap is recorded in hardware-configuration.nix (used for hibernation)
-# and also keeps the build from running out of memory.
+# Swap keeps the build from running out of memory. The installed system finds
+# it by label (filesystems.nix).
 swapon "$SWAP_PART"
 
 # Temporary zram swap only if the swap partition is unusually small
@@ -227,7 +244,9 @@ if [ "$(free -m | awk '/Swap:/ {print $2}')" -lt 4000 ]; then
 fi
 
 echo "[5/6] Generating hardware configuration for target machine..."
-nixos-generate-config --root /mnt
+# Only the hardware (kernel modules, CPU): file systems and swap come from
+# filesystems.nix by label, so no partition UUID ends up in the configuration.
+nixos-generate-config --root /mnt --no-filesystems
 
 echo "[6/6] Cloning configuration repository..."
 # The repository lives in the user's home; the system is installed and later
@@ -242,11 +261,12 @@ if [ ! -d "$DOTFILES_DIR" ]; then
         git clone https://github.com/lakape/dotfiles.git "$DOTFILES_DIR"
     fi
 fi
+# Older installers marked the file --skip-worktree. Git then reports the checkout
+# as clean and Nix builds the committed hardware-configuration.nix instead of
+# the generated one, so the flag must not be set.
+git -C "$DOTFILES_DIR" update-index --no-skip-worktree hardware-configuration.nix 2>/dev/null || true
 cp /mnt/etc/nixos/hardware-configuration.nix "$DOTFILES_DIR/hardware-configuration.nix"
 add_nvidia_settings "$DOTFILES_DIR/hardware-configuration.nix"
-# The hardware configuration is machine-specific: keep it out of git status and
-# commits. Nix still reads the local file when building the flake.
-git -C "$DOTFILES_DIR" update-index --skip-worktree hardware-configuration.nix
 
 # This system is built from the flake only. Remove the generated default
 # configuration, so a plain `nixos-rebuild` fails instead of building it.

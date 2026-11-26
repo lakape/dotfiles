@@ -2,14 +2,14 @@
 
 Flake-based declarative NixOS configuration providing a fully integrated desktop environment based on KDE Plasma 6 and NextKDE (KOS desktop shell).
 
-The primary user is called `user` (set once as `username` in `flake.nix` and as `PRIMARY_USER` in `scripts/install.sh`). The system is described by `configuration.nix` (system), `home.nix` and `plasma.nix` (user, via Home Manager and plasma-manager) and `nvidia.nix` (optional driver). Only `hardware-configuration.nix` is machine-specific; the installer generates it. The setup runs on any x86_64 UEFI machine or virtual machine.
+The primary user is called `user` (set once as `username` in `flake.nix` and as `PRIMARY_USER` in `scripts/install.sh`). The system is described by `configuration.nix` (system), `home.nix` and `plasma.nix` (user, via Home Manager and plasma-manager) `nvidia.nix` (optional driver) and `filesystems.nix` (partitions by label). Only `hardware-configuration.nix` is machine-specific; the installer generates it. The setup runs on any x86_64 UEFI machine or virtual machine.
 
 ---
 
 ## Hardware & System Overview
 
 - **Graphics:** Mesa with kernel modesetting (Intel, AMD, virtual machines). The proprietary NVIDIA driver (`nvidia.nix`) is only enabled on machines where the installer detects an NVIDIA GPU; on hybrid laptops it also sets up PRIME offload.
-- **Storage:** Btrfs with transparent zstd compression and the subvolumes `home` and `nix`.
+- **Storage:** Btrfs with transparent zstd compression and the subvolumes `home` and `nix`. All partitions are mounted by label (`boot`, `nixos`, `swap`, see `filesystems.nix`), so the configuration never contains a partition UUID and keeps working after a reinstall.
 - **Hibernation:** The installer creates a swap partition sized from the RAM (RAM + √RAM, rounded up), which is used to resume from hibernation. zram stays the primary swap for normal operation.
 - **Boot:** systemd-boot on a 1 GiB EFI partition; the five newest generations are kept in the boot menu.
 - **Storage footprint:** ~13–14 GiB after installation. At least 50 GiB of disk space is recommended for generations, build caches and user data (plus the swap partition).
@@ -38,10 +38,10 @@ curl -fsSL https://raw.githubusercontent.com/lakape/dotfiles/master/scripts/inst
 
 1. Selects the target disk (NVMe, SATA or VirtIO) and asks for the swap size (default: RAM + √RAM, rounded up) and for confirmation.
 2. Creates a GPT partition table: 1 GiB EFI system partition, Btrfs root, and a swap partition at the end of the disk.
-3. Formats the partitions (`vfat` on `/boot`, `btrfs` on `/`, `swap`) and creates the Btrfs subvolumes `home` and `nix`.
+3. Formats the partitions with the labels `boot` (`vfat`), `nixos` (`btrfs`) and `swap`, checks that no other disk uses these labels, and creates the Btrfs subvolumes `home` and `nix`.
 4. Mounts everything with zstd compression and activates the swap partition.
-5. Runs `nixos-generate-config --root /mnt`, which records the hardware and the swap partition.
-6. Clones this repository into `/mnt/home/user/dotfiles` and copies the generated `hardware-configuration.nix` into it. If an NVIDIA GPU is present, the `dotfiles.nvidia` settings are added to that file. The file is marked with `git update-index --skip-worktree`, so it never shows up as a change.
+5. Runs `nixos-generate-config --root /mnt --no-filesystems`, which records only the hardware (kernel modules, CPU). File systems and swap come from `filesystems.nix`.
+6. Clones this repository into `/mnt/home/user/dotfiles` and copies the generated `hardware-configuration.nix` into it. If an NVIDIA GPU is present, the `dotfiles.nvidia` settings are added to that file.
 7. Installs the system with `nixos-install --flake /mnt/home/user/dotfiles#nixos`.
 8. Asks for the passwords of `root` and `user` (there is no default password) and hands the home directory over to `user`.
 
@@ -83,15 +83,15 @@ mkdir -p /mnt/boot
 mount -t btrfs -o subvol=home,compress=zstd /dev/nvme0n1p2 /mnt/home
 mount -t btrfs -o subvol=nix,compress=zstd,noatime /dev/nvme0n1p2 /mnt/nix
 mount /dev/nvme0n1p1 /mnt/boot
-
-# Active swap is recorded in hardware-configuration.nix (needed for hibernation)
 swapon /dev/nvme0n1p3
 ```
+
+The labels `boot`, `nixos` and `swap` are required: `filesystems.nix` mounts the partitions by them. Check with `lsblk -f` that no other disk uses the same labels.
 
 ### 3. Generate the Hardware Configuration
 
 ```bash
-nixos-generate-config --root /mnt
+nixos-generate-config --root /mnt --no-filesystems
 rm /mnt/etc/nixos/configuration.nix   # the system is built from the flake only
 ```
 
@@ -108,7 +108,6 @@ On a machine with an NVIDIA GPU, add the driver settings to `/mnt/etc/nixos/hard
 ```bash
 git clone https://github.com/lakape/dotfiles.git /mnt/home/user/dotfiles
 cp /mnt/etc/nixos/hardware-configuration.nix /mnt/home/user/dotfiles/
-git -C /mnt/home/user/dotfiles update-index --skip-worktree hardware-configuration.nix
 ```
 
 ### 5. Install, Set Passwords, Fix Ownership
@@ -143,7 +142,7 @@ update-flake   # cd /home/user/dotfiles && nix flake update
 - **KOS** settings (dock pins, tray order, launcher, appearance, window buttons) start from the files in `dotfiles/quickshell-kos` and `dotfiles/kos`. A rebuild only adds missing files, so changes made in the GUI are kept. KOS saves them only on this machine; to make them the default for new installations, copy them back into the repository and commit:
   ```bash
   ~/dotfiles/scripts/sync-desktop-to-repo.sh
-  cd ~/dotfiles && git commit -am "chore: update desktop preferences" && git push
+  cd ~/dotfiles && git add dotfiles && git commit -m "chore: update desktop preferences" && git push
   ```
   The script only updates files that already exist in the repository. KOS does not accept links into the repository for these files, which is why they are copied.
 
@@ -174,7 +173,9 @@ domain=<domain>
 
 ### Machine-Specific Hardware Configuration
 
-`hardware-configuration.nix` in your checkout belongs to this machine and is marked with `--skip-worktree`, so `git status` ignores it and it cannot be committed by accident. Nix still uses the local file. To make it visible to git again:
+`hardware-configuration.nix` in your checkout belongs to this machine (kernel modules, CPU microcode, NVIDIA settings). It contains no file systems or UUIDs, so committing it does not break other installations, but it usually shows up as modified in `git status`; leave it out of commits (`git add <paths>` instead of `git commit -a`).
+
+Do not mark it with `git update-index --skip-worktree` or `--assume-unchanged`: git then reports the checkout as clean and Nix builds the committed file instead of the local one. Older installations set this flag; remove it with:
 
 ```bash
 git -C ~/dotfiles update-index --no-skip-worktree hardware-configuration.nix
@@ -202,6 +203,7 @@ sudo nix-store --optimise
 ├── t3code.nix                 # T3 Code desktop app from the official AppImage
 ├── home.nix                   # Home Manager: user files, KOS defaults, shell aliases
 ├── plasma.nix                 # KDE Plasma settings (plasma-manager)
+├── filesystems.nix            # Partitions and swap by label (boot, nixos, swap)
 ├── hardware-configuration.nix # Machine-specific, generated by the installer
 ├── dotfiles/
 │   ├── kde/                   # Initial Plasma desktop layout (no panels)
