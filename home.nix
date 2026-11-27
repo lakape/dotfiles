@@ -4,6 +4,7 @@
   imports = [
     ./plasma.nix
     ./agent-skills.nix
+    ./t3code-speech.nix
   ];
 
   home.username = username;
