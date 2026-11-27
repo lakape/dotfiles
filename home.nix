@@ -46,7 +46,8 @@
     cp -r --update=none ${./dotfiles/quickshell-kos}/* "$HOME/.local/state/quickshell/kos/"
     chmod -R u+rwX "$HOME/.local/state/quickshell/kos"
     # Repository files use @HOME@ instead of a fixed home directory path
-    grep -rlI -F '@HOME@' "$HOME/.local/state/quickshell/kos" | xargs -r sed -i "s|@HOME@|$HOME|g"
+    # (grep exits 1 once nothing is left to replace; pipefail would abort activation)
+    { grep -rlI -F '@HOME@' "$HOME/.local/state/quickshell/kos" || true; } | xargs -r sed -i "s|@HOME@|$HOME|g"
 
     cp -r --update=none ${./dotfiles/kos}/* "$HOME/.config/kos/"
     chmod -R u+rwX "$HOME/.config/kos"
