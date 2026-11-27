@@ -301,8 +301,20 @@ set_password() {
 set_password root
 set_password "$PRIMARY_USER"
 
-# The home directory and the repository were created by root before the user existed
-nixos-enter --root /mnt -c "chown $PRIMARY_USER:users /home/$PRIMARY_USER && chmod 700 /home/$PRIMARY_USER && chown -R $PRIMARY_USER:users /home/$PRIMARY_USER/dotfiles"
+# SSH key for GitHub (pushes go over SSH, see programs.git in configuration.nix).
+# Add the public key once at https://github.com/settings/keys
+SSH_KEY="/mnt/home/$PRIMARY_USER/.ssh/id_ed25519"
+if [ ! -e "$SSH_KEY" ]; then
+    mkdir -p "$(dirname "$SSH_KEY")"
+    ssh-keygen -t ed25519 -N "" -C "$PRIMARY_USER@nixos" -f "$SSH_KEY" -q
+fi
+
+# The home directory, the repository and ~/.ssh were created by root before the user existed
+nixos-enter --root /mnt -c "chown $PRIMARY_USER:users /home/$PRIMARY_USER && chmod 700 /home/$PRIMARY_USER && chown -R $PRIMARY_USER:users /home/$PRIMARY_USER/dotfiles /home/$PRIMARY_USER/.ssh && chmod 700 /home/$PRIMARY_USER/.ssh"
+
+echo ""
+echo "SSH public key (add it at https://github.com/settings/keys):"
+cat "$SSH_KEY.pub"
 
 echo "=========================================================="
 echo "    Installation completed successfully.                  "

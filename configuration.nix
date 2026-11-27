@@ -389,6 +389,13 @@
     update-flake = "cd /home/${username}/dotfiles && nix flake update";
   };
 
+  # Always push to GitHub over SSH (key: ~/.ssh/id_ed25519, created by scripts/install.sh).
+  # Fetching stays on https, so public repos also work before the key is on GitHub.
+  programs.git = {
+    enable = true;
+    config.url."git@github.com:".pushInsteadOf = "https://github.com/";
+  };
+
   # SSH server: key-based logins only (keys in users.users.<username>.openssh.authorizedKeys)
   services.openssh = {
     enable = true;
