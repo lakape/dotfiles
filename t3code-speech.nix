@@ -1,5 +1,6 @@
-# Local speech-to-text for T3 Code's voice input, installed ahead of time so
-# dictation works right after a fresh install, without a download in the app.
+# Local speech-to-text for T3 Code's voice input, set up ahead of time so the
+# microphone button works right after a fresh install: no model download and no
+# voice setup in the app.
 #
 # Model: Parakeet Ultra. Among the models T3 Code offers, it has the best German
 # accuracy of those that also detect the spoken language by themselves (needed
@@ -71,6 +72,35 @@ in
         rm -f "$tmp"
         echo "T3 Code settings are not valid JSON; select the speech model in the app." >&2
       fi
+    fi
+
+    # On a fresh install, choose this computer as the place where speech is
+    # turned into text ("Transcribe with" in Settings → Voice), so the
+    # microphone button records right away instead of opening the voice setup.
+    # T3 Code keeps that choice in its browser Local Storage, but on the first
+    # start of a new profile it imports the Local Storage of an older ("V1")
+    # profile once, without overwriting anything. The seed below is such a
+    # profile. The choice names this computer's T3 Code environment, so its id
+    # is created first; T3 Code keeps an existing id.
+    appProfile="$HOME/.config/t3code-v2"
+    seedProfile="$HOME/.config/t3code"
+    if [ ! -v DRY_RUN ] && [ ! -e "$appProfile/v1-local-storage-imported" ] \
+        && [ ! -e "$seedProfile" ] && [ ! -e "$HOME/.config/T3 Code (Alpha)" ]; then
+      environmentId="${userdata}/environment-id"
+      [ -s "$environmentId" ] || cat /proc/sys/kernel/random/uuid > "$environmentId"
+      grant="$(printf '{"id":"%s","destination":{"kind":"environment","environmentId":"%s"}}' \
+        "$(cat /proc/sys/kernel/random/uuid)" "$(tr -d '[:space:]' < "$environmentId")")"
+      install -d -m 700 "$seedProfile"
+      touch "$seedProfile/.dotfiles-seed"
+      if ! ${pkgs.python3}/bin/python3 -I ${./scripts/seed-chromium-local-storage.py} \
+          "$seedProfile/Local Storage/leveldb" t3code://app t3code:voice-audio-grant:v1 "$grant"; then
+        rm -rf "$seedProfile"
+        echo "Could not preselect the T3 Code dictation destination; choose it in Settings → Voice." >&2
+      fi
+    fi
+    # Once T3 Code has imported the seed, it is no longer needed
+    if [ -e "$appProfile/v1-local-storage-imported" ] && [ -e "$seedProfile/.dotfiles-seed" ]; then
+      run rm -rf "$seedProfile"
     fi
   '';
 }

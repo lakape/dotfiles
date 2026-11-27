@@ -203,7 +203,7 @@ sudo nix-store --optimise
 ├── t3code.nix                 # T3 Code desktop app from the official AppImage
 ├── antigravity.nix            # Antigravity CLI (agy), ACP runtime for T3 Code
 ├── agent-skills.nix           # Matt Pocock's agent skills for Claude Code, Codex & co.
-├── t3code-speech.nix          # T3 Code voice input: Parakeet Ultra speech model, preinstalled
+├── t3code-speech.nix          # T3 Code voice input: Parakeet Ultra preinstalled, dictation preselected
 ├── home.nix                   # Home Manager: user files, KOS defaults, shell aliases
 ├── plasma.nix                 # KDE Plasma settings (plasma-manager)
 ├── filesystems.nix            # Partitions and swap by label (boot, nixos, swap)
@@ -218,5 +218,6 @@ sudo nix-store --optimise
 ├── nextkde/                   # NextKDE / KOS desktop shell source tree
 └── scripts/
     ├── install.sh             # Automated installation
+    ├── seed-chromium-local-storage.py # Preselects the T3 Code dictation destination (see t3code-speech.nix)
     └── sync-desktop-to-repo.sh # Copies live KOS settings back into the repository
 ```
