@@ -3,6 +3,7 @@
 {
   imports = [
     ./plasma.nix
+    ./agent-skills.nix
   ];
 
   home.username = username;

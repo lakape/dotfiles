@@ -24,6 +24,11 @@
       url = "github:blip-net/nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Agent skills for Claude Code, Codex & co. (see agent-skills.nix)
+    mattpocock-skills = {
+      url = "github:mattpocock/skills";
+      flake = false;
+    };
   };
 
   outputs = { self, nixpkgs, home-manager, plasma-manager, nextkde, ... }@inputs:

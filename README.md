@@ -13,7 +13,7 @@ The primary user is called `user` (set once as `username` in `flake.nix` and as 
 - **Hibernation:** The installer creates a swap partition sized from the RAM (RAM + √RAM, rounded up), which is used to resume from hibernation. zram stays the primary swap for normal operation.
 - **Boot:** systemd-boot on a 1 GiB EFI partition; the five newest generations are kept in the boot menu.
 - **Storage footprint:** ~13–14 GiB after installation. At least 50 GiB of disk space is recommended for generations, build caches and user data (plus the swap partition).
-- **Applications:** Helium browser (built-in uBlock Origin, Bitwarden installed by policy), Ladybird browser, Teams for Linux, Blip file transfer, T3 Code desktop app (`t3code.nix`) with the Antigravity ACP runtime `agy` (`antigravity.nix`), iLoader (opens automatically when an iPhone or iPad is connected), PipeWire audio, Podman, Node.js, Python 3, PostgreSQL client, Apple SF-Pro fonts.
+- **Applications:** Helium browser (built-in uBlock Origin, Bitwarden installed by policy), Ladybird browser, Teams for Linux, Blip file transfer, T3 Code desktop app (`t3code.nix`) with the Antigravity ACP runtime `agy` (`antigravity.nix`), Matt Pocock's agent skills for Claude Code, Codex, Gemini, Antigravity & co. (`agent-skills.nix`), iLoader (opens automatically when an iPhone or iPad is connected), PipeWire audio, Podman, Node.js, Python 3, PostgreSQL client, Apple SF-Pro fonts.
 
 ---
 
@@ -202,6 +202,7 @@ sudo nix-store --optimise
 ├── nvidia.nix                 # NVIDIA driver, enabled per machine by the installer
 ├── t3code.nix                 # T3 Code desktop app from the official AppImage
 ├── antigravity.nix            # Antigravity CLI (agy), ACP runtime for T3 Code
+├── agent-skills.nix           # Matt Pocock's agent skills for Claude Code, Codex & co.
 ├── home.nix                   # Home Manager: user files, KOS defaults, shell aliases
 ├── plasma.nix                 # KDE Plasma settings (plasma-manager)
 ├── filesystems.nix            # Partitions and swap by label (boot, nixos, swap)
