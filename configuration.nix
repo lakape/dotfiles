@@ -354,6 +354,8 @@
     teams-for-linux
     # Coding agents (official desktop app, see t3code.nix)
     (callPackage ./t3code.nix { })
+    # Antigravity ACP runtime (`agy`), picked up by T3 Code from PATH
+    (callPackage ./antigravity.nix { })
     # Sideloading apps onto iPhone/iPad (opens automatically, see below)
     iloader
     bluez
